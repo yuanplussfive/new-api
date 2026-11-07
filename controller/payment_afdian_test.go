@@ -72,6 +72,23 @@ func TestAfdianSignedQueryRejectsProviderErrorsWithoutLeakingCredentials(t *test
 	assert.NotContains(t, err.Error(), config.APIToken)
 }
 
+func TestAfdianSignedQueryPassesProviderClientFilter(t *testing.T) {
+	config := setting.AfdianConfig{UserID: strings.Repeat("a", 32), APIToken: "test-token"}
+	paid := model.AfdianPayment{OutTradeNo: "paid-1", CustomOrderID: "afd_checkout", PlanID: strings.Repeat("b", 32), TotalAmount: "16.00", Status: 2, Month: 1}
+	response, err := common.Marshal(map[string]any{"ec": 200, "data": map[string]any{"list": []model.AfdianPayment{paid}}})
+	require.NoError(t, err)
+	client := &http.Client{Transport: afdianTestTransport(func(request *http.Request) (*http.Response, error) {
+		// The provider's edge rejects Go's default client before signature verification.
+		if !strings.HasPrefix(request.UserAgent(), "Mozilla/5.0") {
+			return &http.Response{StatusCode: http.StatusForbidden, Body: io.NopCloser(strings.NewReader("request blocked")), Header: make(http.Header)}, nil
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(response)), Header: make(http.Header)}, nil
+	})}
+	actual, err := service.QueryAfdianOrder(t.Context(), client, config, paid.OutTradeNo)
+	require.NoError(t, err)
+	assert.Equal(t, paid, *actual)
+}
+
 // TEST_*_DSN must point to disposable databases: each engine gets the same
 // settlement and migration checks, with real SQL transactions and indexes.
 func TestAfdianDatabaseMatrix(t *testing.T) {

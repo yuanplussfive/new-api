@@ -44,6 +44,8 @@ func QueryAfdianOrder(ctx context.Context, client *http.Client, config setting.A
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// Afdian's edge rejects Go's default client before Open API verification.
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; NewAPI-Afdian/1.0; +https://github.com/QuantumNous/new-api)")
 	if client == nil {
 		client = afdianHTTPClient
 	}
