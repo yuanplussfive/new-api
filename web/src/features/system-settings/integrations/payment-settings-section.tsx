@@ -176,6 +176,7 @@ const paymentSchema = z.object({
   WaffoMinTopUp: z.coerce.number().min(1),
   WaffoNotifyUrl: z.string(),
   WaffoReturnUrl: z.string(),
+  WaffoPancakeEnabled: z.boolean(),
   WaffoPancakeMerchantID: z.string(),
   WaffoPancakePrivateKey: z.string(),
   WaffoPancakeReturnURL: z.string(),
@@ -456,6 +457,7 @@ export function PaymentSettingsSection({
       WaffoSandboxApiKey: values.WaffoSandboxApiKey.trim(),
       WaffoSandboxPrivateKey: values.WaffoSandboxPrivateKey.trim(),
       WaffoPayMethods: JSON.stringify(waffoPayMethods),
+      WaffoPancakeEnabled: values.WaffoPancakeEnabled,
       WaffoPancakeMerchantID: values.WaffoPancakeMerchantID.trim(),
       WaffoPancakePrivateKey: values.WaffoPancakePrivateKey.trim(),
       WaffoPancakeReturnURL: removeTrailingSlash(
@@ -503,6 +505,7 @@ export function PaymentSettingsSection({
       WaffoPayMethods: JSON.stringify(
         parseWaffoPayMethods(waffoDefaultValues.WaffoPayMethods)
       ),
+      WaffoPancakeEnabled: initialRef.current.WaffoPancakeEnabled,
       WaffoPancakeMerchantID: initialRef.current.WaffoPancakeMerchantID.trim(),
       WaffoPancakePrivateKey: initialRef.current.WaffoPancakePrivateKey.trim(),
       WaffoPancakeReturnURL: removeTrailingSlash(
@@ -705,6 +708,13 @@ export function PaymentSettingsSection({
       updates.push({ key: 'WaffoPayMethods', value: sanitized.WaffoPayMethods })
     }
 
+    if (sanitized.WaffoPancakeEnabled !== initial.WaffoPancakeEnabled) {
+      updates.push({
+        key: 'WaffoPancakeEnabled',
+        value: sanitized.WaffoPancakeEnabled,
+      })
+    }
+
     const hasWaffoPancakeChanges =
       sanitized.WaffoPancakeMerchantID !== initial.WaffoPancakeMerchantID ||
       sanitized.WaffoPancakePrivateKey.length > 0 ||
@@ -798,6 +808,7 @@ export function PaymentSettingsSection({
     WaffoPayMethods: JSON.stringify(waffoPayMethods),
   }
   const waffoPancakeValues: WaffoPancakeSettingsValues = {
+    WaffoPancakeEnabled: currentFormValues.WaffoPancakeEnabled,
     WaffoPancakeMerchantID: currentFormValues.WaffoPancakeMerchantID,
     WaffoPancakePrivateKey: currentFormValues.WaffoPancakePrivateKey,
     WaffoPancakeReturnURL: currentFormValues.WaffoPancakeReturnURL,

@@ -29,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { getPaymentErrorTranslation } from '@/features/wallet/lib/payment'
 import { handleServerError } from '@/lib/handle-server-error'
 
+import { SettingsSwitchField } from '../components/settings-form-layout'
 import { removeTrailingSlash } from './utils'
 import {
   type CatalogStore,
@@ -39,6 +40,7 @@ import {
 } from './waffo-pancake-api'
 
 export type WaffoPancakeSettingsValues = {
+  WaffoPancakeEnabled: boolean
   WaffoPancakeMerchantID: string
   WaffoPancakePrivateKey: string
   WaffoPancakeReturnURL: string
@@ -386,6 +388,17 @@ export function WaffoPancakeSettingsSection({
           )}
         </p>
       </div>
+      <SettingsSwitchField
+        controlId='waffo-pancake-enabled'
+        checked={values.WaffoPancakeEnabled}
+        onCheckedChange={(enabled) =>
+          onValueChange('WaffoPancakeEnabled', enabled)
+        }
+        label={t('Enable Waffo Pancake')}
+        description={t(
+          'Disabling stops new wallet top-ups and subscription purchases. Saved settings and payment notifications for existing orders are preserved.'
+        )}
+      />
       <div className='grid min-w-0 gap-x-5 gap-y-4 lg:grid-cols-2'>
         {/* Blue box — webhook configuration only. */}
         <div className='rounded-md bg-blue-50 p-4 text-sm text-blue-900 lg:col-span-2 dark:bg-blue-950 dark:text-blue-100'>

@@ -56,6 +56,11 @@ func GetTopUpInfo(c *gin.Context) {
 
 	// Waffo Pancake is displayed above the standard Waffo gateway.
 	enableWaffoPancake := isWaffoPancakeTopUpEnabled()
+	if !enableWaffoPancake {
+		payMethods = lo.Filter(payMethods, func(method map[string]string, _ int) bool {
+			return method["type"] != model.PaymentMethodWaffoPancake
+		})
+	}
 	if enableWaffoPancake {
 		hasWaffoPancake := false
 		for _, method := range payMethods {

@@ -52,7 +52,7 @@ jobs:
       - name: Prepare embed placeholder
         run: mkdir -p web/dist && touch web/dist/index.html
       - name: Verify payment integration on SQLite, MySQL and PostgreSQL
-        run: go test ./controller ./model ./service ./setting ./middleware -run Afdian -count=1 -v
+        run: go test ./controller ./model ./service ./setting ./middleware -run 'Afdian|WaffoPancake|PaymentCompliance' -count=1 -v
       - name: Vet affected backend packages
         run: go vet ./controller ./model ./service ./setting ./middleware
       - name: Verify authentication route declarations

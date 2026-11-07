@@ -99,6 +99,7 @@ const defaultBillingSettings: BillingSettings = {
   WaffoNotifyUrl: '',
   WaffoReturnUrl: '',
   WaffoPayMethods: '[]',
+  WaffoPancakeEnabled: true,
   WaffoPancakeMerchantID: '',
   WaffoPancakePrivateKey: '',
   WaffoPancakeReturnURL: '',
