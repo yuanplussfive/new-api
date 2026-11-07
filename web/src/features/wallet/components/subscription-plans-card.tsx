@@ -645,6 +645,9 @@ export function SubscriptionPlansCard({
         plan={selectedPlan}
         enableStripe={enableStripe}
         enableCreem={enableCreem}
+        afdianProducts={
+          topupInfo?.enable_afdian_topup ? topupInfo.afdian_products : undefined
+        }
         enableWaffoPancake={enableWaffoPancake}
         enableOnlineTopUp={enableOnlineTopUp}
         epayMethods={epayMethods}

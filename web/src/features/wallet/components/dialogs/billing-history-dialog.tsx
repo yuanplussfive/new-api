@@ -45,8 +45,9 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { formatCurrencyFromUSD } from '@/lib/currency'
+import { formatCurrencyFromUSD, formatQuotaWithCurrency } from '@/lib/currency'
 import { formatNumber } from '@/lib/format'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { useBillingHistory } from '../../hooks/use-billing-history'
 import {
@@ -54,6 +55,7 @@ import {
   getPaymentMethodName,
   formatTimestamp,
 } from '../../lib/billing'
+import { AfdianOrderVerification } from '../afdian-payment'
 
 interface BillingHistoryDialogProps {
   open: boolean
@@ -78,9 +80,12 @@ export function BillingHistoryDialog({
     handlePageSizeChange,
     handleSearch,
     handleCompleteOrder,
+    refresh,
   } = useBillingHistory()
 
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
+  const [afdianTradeNo, setAfdianTradeNo] = useState<string | null>(null)
+  const currentUserID = useAuthStore((state) => state.auth.user?.id)
   const { copyToClipboard, copiedText } = useCopyToClipboard({ notify: false })
 
   const totalPages = Math.ceil(total / pageSize)
@@ -248,11 +253,13 @@ export function BillingHistoryDialog({
                             {t('Amount')}
                           </Label>
                           <div className='text-sm font-semibold'>
-                            {formatCurrencyFromUSD(record.amount, {
-                              digitsLarge: 2,
-                              digitsSmall: 2,
-                              abbreviate: false,
-                            })}
+                            {record.payment_method === 'afdian'
+                              ? formatQuotaWithCurrency(record.amount)
+                              : formatCurrencyFromUSD(record.amount, {
+                                  digitsLarge: 2,
+                                  digitsSmall: 2,
+                                  abbreviate: false,
+                                })}
                           </div>
                         </div>
                         <div className='space-y-1'>
@@ -261,23 +268,37 @@ export function BillingHistoryDialog({
                           </Label>
                           <div className='text-sm font-semibold text-red-600'>
                             {formatNumber(record.money)}
+                            {record.payment_method === 'afdian' && ' CNY'}
                           </div>
                         </div>
                       </div>
 
                       {/* Admin Actions */}
-                      {isAdmin && record.status === 'pending' && (
-                        <div className='mt-4 flex justify-end'>
+                      {record.payment_method === 'afdian' &&
+                        record.status === 'pending' &&
+                        record.user_id === currentUserID && (
                           <Button
                             size='sm'
                             variant='outline'
-                            onClick={() => setConfirmTradeNo(record.trade_no)}
-                            disabled={completing}
+                            onClick={() => setAfdianTradeNo(record.trade_no)}
                           >
-                            {t('Complete Order')}
+                            {t('Verify payment')}
                           </Button>
-                        </div>
-                      )}
+                        )}
+                      {isAdmin &&
+                        record.status === 'pending' &&
+                        record.payment_method !== 'afdian' && (
+                          <div className='mt-4 flex justify-end'>
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              onClick={() => setConfirmTradeNo(record.trade_no)}
+                              disabled={completing}
+                            >
+                              {t('Complete Order')}
+                            </Button>
+                          </div>
+                        )}
                     </div>
                   )
                 })}
@@ -323,6 +344,21 @@ export function BillingHistoryDialog({
       </Dialog>
 
       {/* Confirm Complete Order Dialog */}
+      <Dialog
+        open={afdianTradeNo !== null}
+        onOpenChange={(value) => {
+          if (!value) setAfdianTradeNo(null)
+        }}
+        title={t('Verify payment')}
+      >
+        {afdianTradeNo && (
+          <AfdianOrderVerification
+            key={afdianTradeNo}
+            orderID={afdianTradeNo}
+            onPaid={refresh}
+          />
+        )}
+      </Dialog>
       <AlertDialog
         open={!!confirmTradeNo}
         onOpenChange={(open) => !open && setConfirmTradeNo(null)}

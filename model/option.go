@@ -102,6 +102,7 @@ func InitOptionMap() {
 	common.OptionMap["StripeUnitPrice"] = strconv.FormatFloat(setting.StripeUnitPrice, 'f', -1, 64)
 	common.OptionMap["StripePromotionCodesEnabled"] = strconv.FormatBool(setting.StripePromotionCodesEnabled)
 	common.OptionMap["CreemApiKey"] = setting.CreemApiKey
+	common.OptionMap[setting.AfdianOptionKey] = "{}"
 	common.OptionMap["CreemProducts"] = setting.CreemProducts
 	common.OptionMap["CreemTestMode"] = strconv.FormatBool(setting.CreemTestMode)
 	common.OptionMap["CreemWebhookSecret"] = setting.CreemWebhookSecret
@@ -232,6 +233,13 @@ func SyncOptions(frequency int) {
 }
 
 func validateOptionValue(key string, value string) error {
+	if key == setting.AfdianOptionKey {
+		var config setting.AfdianConfig
+		if err := common.UnmarshalJsonStr(value, &config); err != nil {
+			return err
+		}
+		return setting.ValidateAfdianConfig(config)
+	}
 	if key == legacyAccessTokenRetireAtKey {
 		return errLegacyRetireAtReadOnly
 	}
@@ -553,6 +561,8 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.StripePromotionCodesEnabled = value == "true"
 	case "CreemApiKey":
 		setting.CreemApiKey = value
+	case setting.AfdianOptionKey:
+		return setting.UpdateAfdianConfig(value)
 	case "CreemProducts":
 		setting.CreemProducts = value
 	case "CreemTestMode":

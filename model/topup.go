@@ -28,6 +28,7 @@ type TopUp struct {
 const (
 	PaymentMethodStripe       = "stripe"
 	PaymentMethodCreem        = "creem"
+	PaymentMethodAfdian       = "afdian"
 	PaymentMethodWaffo        = "waffo"
 	PaymentMethodWaffoPancake = "waffo_pancake"
 	PaymentMethodBalance      = "balance"
@@ -37,6 +38,7 @@ const (
 	PaymentProviderEpay         = "epay"
 	PaymentProviderStripe       = "stripe"
 	PaymentProviderCreem        = "creem"
+	PaymentProviderAfdian       = "afdian"
 	PaymentProviderWaffo        = "waffo"
 	PaymentProviderWaffoPancake = "waffo_pancake"
 	PaymentProviderBalance      = "balance"
@@ -479,6 +481,9 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		}
 
 		// 计算应充值额度：
+		if topUp.PaymentProvider == PaymentProviderAfdian {
+			return common.NewMessage("Afdian orders require payment verification")
+		}
 		// - Stripe 订单：Money 代表经分组倍率换算后的美元数量，直接 * QuotaPerUnit
 		// - 其他订单（如易支付）：Amount 为美元数量，* QuotaPerUnit
 		var quotaErr error

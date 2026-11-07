@@ -51,9 +51,11 @@ import type {
   CreemProduct,
   WaffoPayMethod,
 } from '../types'
+import { AfdianProductsSection } from './afdian-payment'
 import { CreemProductsSection } from './creem-products-section'
 
 interface RechargeFormCardProps {
+  onAfdianPaid?: () => void | Promise<void>
   topupInfo: TopupInfo | null
   presetAmounts: PresetAmount[]
   selectedPreset: number | null
@@ -84,6 +86,7 @@ interface RechargeFormCardProps {
 }
 
 export function RechargeFormCard({
+  onAfdianPaid,
   topupInfo,
   presetAmounts,
   selectedPreset,
@@ -135,7 +138,10 @@ export function RechargeFormCard({
     topupInfo?.enable_stripe_topup ||
     enableWaffoTopup ||
     enableWaffoPancakeTopup
-  const hasAnyTopup = hasConfigurableTopup || enableCreemTopup
+  const hasAfdianTopup =
+    topupInfo?.enable_afdian_topup &&
+    topupInfo.afdian_products?.some((product) => !product.subscription_plan_id)
+  const hasAnyTopup = hasConfigurableTopup || enableCreemTopup || hasAfdianTopup
   const hasStandardPaymentMethods =
     Array.isArray(topupInfo?.pay_methods) && topupInfo.pay_methods.length > 0
   const hasWaffoPaymentMethods =
@@ -497,6 +503,12 @@ export function RechargeFormCard({
         </Alert>
       )}
 
+      {hasAfdianTopup && (
+        <AfdianProductsSection
+          products={topupInfo?.afdian_products ?? []}
+          onPaid={onAfdianPaid}
+        />
+      )}
       {/* Creem Products Section */}
       {enableCreemTopup &&
         Array.isArray(creemProducts) &&

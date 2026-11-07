@@ -27,6 +27,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
 import { Separator } from '@/components/ui/separator'
+import type { AfdianProduct } from '@/features/wallet/afdian-api'
+import { AfdianPayButton } from '@/features/wallet/components/afdian-payment'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { formatQuota } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -53,6 +55,7 @@ interface Props {
   plan: PlanRecord | null
   enableStripe?: boolean
   enableCreem?: boolean
+  afdianProducts?: AfdianProduct[]
   enableWaffoPancake?: boolean
   enableOnlineTopUp?: boolean
   epayMethods?: PaymentMethod[]
@@ -85,7 +88,16 @@ export function SubscriptionPurchaseDialog(props: Props) {
     props.enableWaffoPancake && !!plan.waffo_pancake_product_id
   const hasEpay =
     props.enableOnlineTopUp && (props.epayMethods || []).length > 0
-  const hasAnyPayment = hasStripe || hasCreem || hasWaffoPancake || hasEpay
+  const afdianProducts =
+    props.afdianProducts?.filter(
+      (product) => product.subscription_plan_id === plan.id
+    ) ?? []
+  const hasAnyPayment =
+    hasStripe ||
+    hasCreem ||
+    hasWaffoPancake ||
+    hasEpay ||
+    afdianProducts.length > 0
   const totalAmount = Number(plan.total_amount || 0)
   const price = Number(plan.price_amount || 0).toFixed(2)
   const quotaPerUnit =
@@ -371,6 +383,14 @@ export function SubscriptionPurchaseDialog(props: Props) {
                 )}
               </div>
             )}
+            {afdianProducts.map((product) => (
+              <AfdianPayButton
+                key={product.plan_id}
+                product={product}
+                disabled={paying || limitReached}
+                onPaid={props.onPurchaseSuccess}
+              />
+            ))}
             {hasEpay && (
               <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-2'>
                 <Combobox

@@ -98,6 +98,13 @@ func GetTopUpInfo(c *gin.Context) {
 	}
 
 	data := gin.H{
+		"enable_afdian_topup": isAfdianEnabled(),
+		"afdian_products": func() []setting.AfdianProduct {
+			if isAfdianEnabled() {
+				return setting.GetAfdianConfig().Products
+			}
+			return []setting.AfdianProduct{}
+		}(),
 		"enable_online_topup":              isEpayTopUpEnabled(),
 		"enable_stripe_topup":              isStripeTopUpEnabled(),
 		"enable_creem_topup":               isCreemTopUpEnabled(),
