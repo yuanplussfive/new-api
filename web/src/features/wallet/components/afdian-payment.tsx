@@ -57,7 +57,10 @@ export function AfdianPayButton(props: AfdianPayButtonProps) {
       <Button
         variant='outline'
         disabled={props.disabled}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          checkout.reset()
+          setOpen(true)
+        }}
       >
         {t('Afdian')} · {price}
       </Button>

@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -38,6 +38,11 @@ const product: AfdianProduct = {
 const checkout = {
   order_id: 'afd_checkout',
   checkout_url: 'https://afdian.com/order/create?custom_order_id=afd_checkout',
+}
+const nextCheckout = {
+  order_id: 'afd_next_checkout',
+  checkout_url:
+    'https://afdian.com/order/create?custom_order_id=afd_next_checkout',
 }
 
 function renderPayment(
@@ -83,6 +88,88 @@ describe('Afdian payment', () => {
     expect(
       screen.getByRole('button', { name: 'Verify payment' })
     ).toBeDisabled()
+  })
+
+  test.each(['pending', 'success'])(
+    'creates a fresh checkout after closing and reopening a %s order',
+    async (status) => {
+      vi.mocked(api.post)
+        .mockResolvedValueOnce({ data: { success: true, data: checkout } })
+        .mockResolvedValueOnce({ data: { success: true, data: nextCheckout } })
+      vi.mocked(api.get).mockResolvedValue({
+        data: { success: true, data: { status } },
+      })
+      const user = userEvent.setup()
+      renderPayment()
+      await user.click(screen.getByRole('button', { name: /Afdian/ }))
+      await user.click(
+        screen.getByRole('button', { name: 'Continue to payment' })
+      )
+      expect(
+        await screen.findByRole('link', { name: 'Open Afdian checkout' })
+      ).toHaveAttribute('href', checkout.checkout_url)
+      if (status === 'success') {
+        expect(await screen.findByRole('status')).toHaveTextContent(
+          'Payment verified'
+        )
+      }
+
+      await user.keyboard('{Escape}')
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      )
+      await user.click(screen.getByRole('button', { name: /Afdian/ }))
+      expect(
+        screen.queryByRole('link', { name: 'Open Afdian checkout' })
+      ).not.toBeInTheDocument()
+      expect(api.post).toHaveBeenCalledOnce()
+      await user.click(
+        screen.getByRole('button', { name: 'Continue to payment' })
+      )
+      expect(
+        await screen.findByRole('link', { name: 'Open Afdian checkout' })
+      ).toHaveAttribute('href', nextCheckout.checkout_url)
+      expect(api.post).toHaveBeenCalledTimes(2)
+    }
+  )
+
+  test('keeps the new checkout when the previous request completes after reopening', async () => {
+    const previousResponse = { data: { success: true, data: checkout } }
+    let resolvePrevious!: (value: typeof previousResponse) => void
+    const previousRequest = new Promise<typeof previousResponse>((resolve) => {
+      resolvePrevious = resolve
+    })
+    vi.mocked(api.post)
+      .mockReturnValueOnce(previousRequest)
+      .mockResolvedValueOnce({ data: { success: true, data: nextCheckout } })
+    const user = userEvent.setup()
+    renderPayment()
+    await user.click(screen.getByRole('button', { name: /Afdian/ }))
+    await user.click(
+      screen.getByRole('button', { name: 'Continue to payment' })
+    )
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce())
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    )
+    await user.click(screen.getByRole('button', { name: /Afdian/ }))
+    expect(
+      screen.getByRole('button', { name: 'Continue to payment' })
+    ).toBeEnabled()
+    await user.click(
+      screen.getByRole('button', { name: 'Continue to payment' })
+    )
+    expect(
+      await screen.findByRole('link', { name: 'Open Afdian checkout' })
+    ).toHaveAttribute('href', nextCheckout.checkout_url)
+    await act(async () => {
+      resolvePrevious(previousResponse)
+      await previousRequest
+    })
+    expect(
+      screen.getByRole('link', { name: 'Open Afdian checkout' })
+    ).toHaveAttribute('href', nextCheckout.checkout_url)
   })
 
   test('uses both local and provider order numbers for manual recovery and permits another purchase after success', async () => {
