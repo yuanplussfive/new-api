@@ -36,7 +36,7 @@ end
 return {1, count, ttl}
 `
 
-var inMemoryRateLimiter common.InMemoryRateLimiter
+var inMemoryRateLimiter = new(common.InMemoryRateLimiter)
 
 var defNext = func(c *gin.Context) {
 	c.Next()
@@ -187,11 +187,53 @@ func GlobalAPIRateLimit() func(c *gin.Context) {
 	return defNext
 }
 
-func CriticalRateLimit() func(c *gin.Context) {
-	if common.CriticalRateLimitEnable {
-		return rateLimitFactory(common.CriticalRateLimitNum, common.CriticalRateLimitDuration, "CT")
+// CriticalRateLimit isolates authenticated operations by user and registered
+// route. An explicit scope shares a budget across equivalent entry points,
+// such as password, MFA, OAuth, and Passkey login. Run after UserAuth when the
+// route requires authentication; anonymous requests are limited by client IP.
+func CriticalRateLimit(scope ...string) func(c *gin.Context) {
+	if !common.CriticalRateLimitEnable {
+		return defNext
 	}
-	return defNext
+	maxRequestNum, duration := common.CriticalRateLimitNum, common.CriticalRateLimitDuration
+	useRedis := common.RedisEnabled
+	if !useRedis {
+		inMemoryRateLimiter.Init(common.RateLimitKeyExpirationDuration)
+	}
+	return func(c *gin.Context) {
+		// FullPath contains route parameters (/:id), preventing callers from
+		// acquiring a fresh budget by changing IDs or query strings.
+		mark := "CT:" + c.Request.Method + ":" + c.FullPath()
+		if len(scope) > 0 && scope[0] != "" {
+			mark = "CT:" + scope[0]
+		}
+		if userID := c.GetInt("id"); userID > 0 {
+			if useRedis {
+				userRedisRateLimiter(c, maxRequestNum, duration, redisUserRateLimitKey(mark, userID))
+				return
+			}
+			key := fmt.Sprintf("%s:user:%d", mark, userID)
+			if !inMemoryRateLimiter.Request(key, maxRequestNum, duration) {
+				writeRateLimited(c, duration)
+			}
+			return
+		}
+		if useRedis {
+			redisRateLimiter(c, maxRequestNum, duration, mark)
+			return
+		}
+		memoryRateLimiter(c, maxRequestNum, duration, mark)
+	}
+}
+
+// SessionRefreshRateLimit keeps routine session renewal independent of login
+// attempts and payment operations. Its IP budget cannot be bypassed by varying
+// an unverified cookie or X-Auth-Session header.
+func SessionRefreshRateLimit() func(c *gin.Context) {
+	if !common.CriticalRateLimitEnable {
+		return defNext
+	}
+	return rateLimitFactory(common.SessionRefreshRateLimitNum, common.SessionRefreshRateLimitDuration, "CT:session-refresh")
 }
 
 func UserCriticalRateLimit(scope string) func(c *gin.Context) {

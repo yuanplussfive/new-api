@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -40,12 +41,101 @@ func useRateLimitMiniRedis(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 	return redisServer, redisClient
 }
 
-func performRateLimitRequest(router http.Handler, path string, remoteAddr string) *httptest.ResponseRecorder {
+func performRateLimitRequest(router http.Handler, path string, remoteAddr string, userID ...int) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, path, nil)
 	request.RemoteAddr = remoteAddr
+	if len(userID) > 0 {
+		request.Header.Set("X-Test-User", strconv.Itoa(userID[0]))
+	}
 	router.ServeHTTP(recorder, request)
 	return recorder
+}
+
+func configureCriticalRateLimitTest(t *testing.T, useRedis bool) {
+	t.Helper()
+	previousEnabled, previousNum, previousDuration := common.CriticalRateLimitEnable, common.CriticalRateLimitNum, common.CriticalRateLimitDuration
+	previousRefreshNum, previousRefreshDuration := common.SessionRefreshRateLimitNum, common.SessionRefreshRateLimitDuration
+	previousRedis, previousLimiter := common.RedisEnabled, inMemoryRateLimiter
+	t.Cleanup(func() {
+		common.CriticalRateLimitEnable, common.CriticalRateLimitNum, common.CriticalRateLimitDuration = previousEnabled, previousNum, previousDuration
+		common.SessionRefreshRateLimitNum, common.SessionRefreshRateLimitDuration = previousRefreshNum, previousRefreshDuration
+		common.RedisEnabled, inMemoryRateLimiter = previousRedis, previousLimiter
+	})
+	common.CriticalRateLimitEnable, common.CriticalRateLimitNum, common.CriticalRateLimitDuration = true, 2, 37
+	common.SessionRefreshRateLimitNum, common.SessionRefreshRateLimitDuration = 2, 11
+	common.RedisEnabled = useRedis
+	inMemoryRateLimiter = new(common.InMemoryRateLimiter)
+	inMemoryRateLimiter.Init(0)
+	if useRedis {
+		useRateLimitMiniRedis(t)
+	}
+}
+
+func TestCriticalRateLimitSeparatesUsersAndOperations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, backend := range []string{"memory", "redis"} {
+		t.Run(backend, func(t *testing.T) {
+			configureCriticalRateLimitTest(t, backend == "redis")
+			router := gin.New()
+			require.NoError(t, router.SetTrustedProxies(nil))
+			// The fixture supplies an already authenticated identity, as UserAuth does.
+			router.Use(func(c *gin.Context) {
+				if value := c.GetHeader("X-Test-User"); value != "" {
+					id, err := strconv.Atoi(value)
+					require.NoError(t, err)
+					c.Set("id", id)
+				}
+			})
+			for _, path := range []string{"/payments/:id", "/keys/:id", "/login"} {
+				router.GET(path, CriticalRateLimit(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
+			}
+			const address = "192.0.2.81:12345"
+			assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/payments/1", address, 41).Code)
+			assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/payments/2", address, 41).Code)
+			limited := performRateLimitRequest(router, "/payments/3", address, 41)
+			assert.Equal(t, http.StatusTooManyRequests, limited.Code)
+			assert.Equal(t, "37", limited.Header().Get("Retry-After"))
+			assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/keys/1", address, 41).Code)
+			assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/payments/1", address, 42).Code)
+			assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/login", address).Code)
+			assert.Equal(t, http.StatusTooManyRequests, performRateLimitRequest(router, "/payments/4", "198.51.100.81:12345", 41).Code)
+		})
+	}
+}
+
+func TestCriticalAuthenticationBudgetIsSharedButRefreshIsIndependent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, backend := range []string{"memory", "redis"} {
+		t.Run(backend, func(t *testing.T) {
+			configureCriticalRateLimitTest(t, backend == "redis")
+			router := gin.New()
+			require.NoError(t, router.SetTrustedProxies(nil))
+			for _, path := range []string{"/login", "/passkey", "/reset"} {
+				router.GET(path, CriticalRateLimit("authentication"), func(c *gin.Context) { c.Status(http.StatusUnauthorized) })
+			}
+			router.GET("/refresh", SessionRefreshRateLimit(), func(c *gin.Context) { c.Status(http.StatusUnauthorized) })
+			const address = "192.0.2.82:12345"
+			assert.Equal(t, http.StatusUnauthorized, performRateLimitRequest(router, "/login", address).Code)
+			assert.Equal(t, http.StatusUnauthorized, performRateLimitRequest(router, "/passkey", address).Code)
+			assert.Equal(t, http.StatusTooManyRequests, performRateLimitRequest(router, "/reset", address).Code)
+			assert.Equal(t, http.StatusUnauthorized, performRateLimitRequest(router, "/refresh", address).Code)
+			request := httptest.NewRequest(http.MethodGet, "/refresh", nil)
+			request.RemoteAddr = address
+			request.Header.Set("Cookie", "new_api_refresh=unverified-cookie-one")
+			request.Header.Set("X-Auth-Session", "unverified-session-one")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			assert.Equal(t, http.StatusUnauthorized, response.Code)
+			request.Header.Set("Cookie", "new_api_refresh=unverified-cookie-two")
+			request.Header.Set("X-Auth-Session", "unverified-session-two")
+			response = httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			assert.Equal(t, http.StatusTooManyRequests, response.Code)
+			assert.Equal(t, "11", response.Header().Get("Retry-After"))
+			assert.Equal(t, http.StatusUnauthorized, performRateLimitRequest(router, "/refresh", "198.51.100.82:12345").Code)
+		})
+	}
 }
 
 func TestRedisIPRateLimiterThresholdTTLAndNamespace(t *testing.T) {

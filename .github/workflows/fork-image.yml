@@ -57,6 +57,10 @@ jobs:
         run: go vet ./controller ./model ./service ./setting ./middleware
       - name: Verify authentication route declarations
         run: go test ./middleware ./router -count=1
+      - name: Verify login and session security regressions
+        run: |
+          go test ./service -run 'Auth|Login|Security|Refresh|Session' -count=1
+          go test ./controller -run '^Test(SecurityLogin|OAuthLogin|GenerateOAuthCode|AuthLogout|SessionLimitDoesNotRecord|SetupLogin|WriteAuthSessionError)' -count=1
 
   frontend:
     if: github.repository == 'yuanplussfive/new-api'
@@ -72,7 +76,7 @@ jobs:
           bun-version: '1.4.4'
       - run: bun install --frozen-lockfile
       - run: bun check -b
-      - run: bun run test src/features/wallet src/features/subscriptions src/features/system-settings/integrations
+      - run: bun run test src/features/wallet src/features/subscriptions src/features/system-settings/integrations src/lib/auth-session.test.ts
       - run: bun run build
 
   image:
