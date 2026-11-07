@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -34,13 +35,16 @@ export type RedemptionExportData = {
 type RedemptionsExportDialogProps = {
   data: RedemptionExportData
   onClose: () => void
+  defaultFormat?: 'txt' | 'md' | 'codes'
 }
 
 export function RedemptionsExportDialog(props: RedemptionsExportDialogProps) {
   const { t } = useTranslation()
   const id = useId()
-  const [saveToFile, setSaveToFile] = useState(false)
-  const [format, setFormat] = useState<'txt' | 'md'>('txt')
+  const [saveToFile, setSaveToFile] = useState(props.defaultFormat === 'codes')
+  const [format, setFormat] = useState<'txt' | 'md' | 'codes'>(
+    props.defaultFormat ?? 'txt'
+  )
   const [includeName, setIncludeName] = useState(true)
   const [includeQuota, setIncludeQuota] = useState(true)
 
@@ -50,15 +54,15 @@ export function RedemptionsExportDialog(props: RedemptionsExportDialogProps) {
       return
     }
     const headers: string[] = []
-    if (includeName) headers.push(t('Name'))
+    if (includeName && format !== 'codes') headers.push(t('Name'))
     headers.push(t('Code'))
-    if (includeQuota) headers.push(t('Quota'))
+    if (includeQuota && format !== 'codes') headers.push(t('Quota'))
 
     const rows = props.data.keys.map((key) => {
       const row: string[] = []
-      if (includeName) row.push(props.data.name)
+      if (includeName && format !== 'codes') row.push(props.data.name)
       row.push(key)
-      if (includeQuota) row.push(props.data.quota)
+      if (includeQuota && format !== 'codes') row.push(props.data.quota)
       return row.map((value) => value.replaceAll(/[\t\r\n]+/g, ' '))
     })
 
@@ -88,7 +92,7 @@ export function RedemptionsExportDialog(props: RedemptionsExportDialogProps) {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `redemption-codes-${Date.now()}.${format}`
+    link.download = `redemption-codes-${Date.now()}.${format === 'md' ? 'md' : 'txt'}`
     document.body.append(link)
     link.click()
     link.remove()
@@ -123,7 +127,7 @@ export function RedemptionsExportDialog(props: RedemptionsExportDialogProps) {
           <RadioGroup
             value={format}
             onValueChange={(value) => {
-              if (value === 'txt' || value === 'md') {
+              if (value === 'txt' || value === 'md' || value === 'codes') {
                 setFormat(value)
               }
             }}
@@ -133,6 +137,7 @@ export function RedemptionsExportDialog(props: RedemptionsExportDialogProps) {
             {[
               { value: 'txt', label: t('Save as TXT') },
               { value: 'md', label: t('Save as Markdown') },
+              { value: 'codes', label: t('One code per line') },
             ].map((option) => (
               <div key={option.value} className='flex items-center gap-2'>
                 <RadioGroupItem
@@ -143,24 +148,42 @@ export function RedemptionsExportDialog(props: RedemptionsExportDialogProps) {
               </div>
             ))}
           </RadioGroup>
-          <div className='flex flex-wrap gap-6'>
-            <div className='flex items-center gap-2'>
-              <Checkbox
-                id={`${id}-name`}
-                checked={includeName}
-                onCheckedChange={setIncludeName}
-              />
-              <Label htmlFor={`${id}-name`}>{t('Include name')}</Label>
+          {format === 'codes' ? (
+            <div className='space-y-2'>
+              <p className='text-muted-foreground text-sm'>
+                {t(
+                  'Paste these lines into Afdian Automatic random reply. Each paid order receives one unique code.'
+                )}
+              </p>
+              <CopyButton
+                value={props.data.keys.join('\n')}
+                size='sm'
+                variant='outline'
+                aria-label={t('Copy all codes')}
+              >
+                {t('Copy all codes')}
+              </CopyButton>
             </div>
-            <div className='flex items-center gap-2'>
-              <Checkbox
-                id={`${id}-quota`}
-                checked={includeQuota}
-                onCheckedChange={setIncludeQuota}
-              />
-              <Label htmlFor={`${id}-quota`}>{t('Include quota')}</Label>
+          ) : (
+            <div className='flex flex-wrap gap-6'>
+              <div className='flex items-center gap-2'>
+                <Checkbox
+                  id={`${id}-name`}
+                  checked={includeName}
+                  onCheckedChange={setIncludeName}
+                />
+                <Label htmlFor={`${id}-name`}>{t('Include name')}</Label>
+              </div>
+              <div className='flex items-center gap-2'>
+                <Checkbox
+                  id={`${id}-quota`}
+                  checked={includeQuota}
+                  onCheckedChange={setIncludeQuota}
+                />
+                <Label htmlFor={`${id}-quota`}>{t('Include quota')}</Label>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </Dialog>

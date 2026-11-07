@@ -36,6 +36,9 @@ type AfdianPayment struct {
 var ErrAfdianPaymentMismatch = errors.New("Afdian payment does not match checkout")
 
 func CreateAfdianOrder(userID int, tradeNo, creatorID string, product setting.AfdianProduct, plan *SubscriptionPlan) error {
+	if product.DeliveryMode == setting.AfdianDeliveryRedemption {
+		return ErrAfdianPaymentMismatch
+	}
 	if err := setting.ValidateAfdianConfig(setting.AfdianConfig{Products: []setting.AfdianProduct{product}}); err != nil {
 		return err
 	}
@@ -74,6 +77,14 @@ func GetAfdianOrder(tradeNo string) (*AfdianOrder, error) {
 	var order AfdianOrder
 	err := DB.Where("trade_no = ?", tradeNo).First(&order).Error
 	return &order, err
+}
+
+// A plan with direct-payment history must not also distribute wallet codes:
+// an outstanding checkout could otherwise receive both kinds of credit.
+func AfdianPlanHasDirectOrders(creatorID, planID string) (bool, error) {
+	var count int64
+	err := DB.Model(&AfdianOrder{}).Where("creator_id = ? AND plan_id = ?", creatorID, planID).Count(&count).Error
+	return count > 0, err
 }
 
 // CompleteAfdianOrder atomically binds the external payment and grants exactly

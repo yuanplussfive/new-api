@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -43,6 +43,18 @@ import { api } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
 import { SettingsPageFormActions } from '../components/settings-page-context'
+import { AfdianCodeDelivery } from './afdian-code-delivery'
+
+const afdianProductsSchema = z.array(
+  z.object({
+    plan_id: z.string(),
+    name: z.string(),
+    price: z.string(),
+    quota: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    subscription_plan_id: z.number().int().nonnegative(),
+    delivery_mode: z.enum(['direct', 'redemption']).optional(),
+  })
+)
 
 const afdianSchema = z.object({
   enabled: z.boolean(),
@@ -117,6 +129,14 @@ export function AfdianSettingsSection() {
     },
   })
   const webhook = `${window.location.origin}/api/afdian/webhook`
+  const productsJSON = useWatch({ control: form.control, name: 'products' })
+  let products: AfdianProduct[] = []
+  try {
+    const parsed = afdianProductsSchema.safeParse(JSON.parse(productsJSON))
+    if (parsed.success) products = parsed.data
+  } catch {
+    // Invalid JSON stays in the editor so it can be corrected before saving.
+  }
   return (
     <Form {...form}>
       <div className='space-y-6'>
@@ -183,9 +203,16 @@ export function AfdianSettingsSection() {
                 />
               </FormControl>
               <FormDescription>
-                {query.data?.api_token_configured
-                  ? t('Configured. Leave blank to keep the current token.')
-                  : t('Enter the token from your Afdian Open API settings.')}
+                <span>
+                  {query.data?.api_token_configured
+                    ? t('Configured. Leave blank to keep the current token.')
+                    : t('Enter the token from your Afdian Open API settings.')}
+                </span>{' '}
+                <span>
+                  {t(
+                    'Optional when every product uses redemption code delivery.'
+                  )}
+                </span>
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -214,6 +241,7 @@ export function AfdianSettingsSection() {
                       price: '10.00',
                       quota: 500000,
                       subscription_plan_id: 0,
+                      delivery_mode: 'redemption',
                     },
                   ],
                   null,
@@ -223,6 +251,26 @@ export function AfdianSettingsSection() {
               <FormMessage />
             </FormItem>
           )}
+        />
+        <AfdianCodeDelivery
+          products={products}
+          disabled={query.isPending || query.isError || save.isPending}
+          unsaved={form.formState.isDirty}
+          onDeliveryModeChange={(planID, mode) =>
+            form.setValue(
+              'products',
+              JSON.stringify(
+                products.map((product) =>
+                  product.plan_id === planID
+                    ? { ...product, delivery_mode: mode }
+                    : product
+                ),
+                null,
+                2
+              ),
+              { shouldDirty: true, shouldValidate: true }
+            )
+          }
         />
         <Button
           type='button'

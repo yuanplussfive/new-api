@@ -13,12 +13,18 @@ import (
 // A single persisted option keeps credentials and the product catalogue consistent.
 const AfdianOptionKey = "AfdianConfigSecret"
 
+const (
+	AfdianDeliveryDirect     = "direct"
+	AfdianDeliveryRedemption = "redemption"
+)
+
 type AfdianProduct struct {
 	PlanID             string `json:"plan_id"`
 	Name               string `json:"name"`
 	Price              string `json:"price"` // CNY, independent of the dashboard display currency.
 	Quota              int64  `json:"quota"`
 	SubscriptionPlanID int    `json:"subscription_plan_id"`
+	DeliveryMode       string `json:"delivery_mode,omitempty"`
 }
 
 type AfdianConfig struct {
@@ -40,11 +46,23 @@ func ValidateAfdianConfig(config AfdianConfig) error {
 	if len(config.Products) > 100 || len(config.APIToken) > 512 {
 		return common.NewMessage("Invalid parameters")
 	}
-	if config.Enabled && (!afdianIDPattern.MatchString(config.UserID) || strings.TrimSpace(config.APIToken) == "" || len(config.Products) == 0) {
+	if config.Enabled && (!afdianIDPattern.MatchString(config.UserID) || len(config.Products) == 0) {
 		return common.NewMessage("Afdian credentials and products are required")
 	}
 	seen := make(map[string]bool, len(config.Products))
 	for _, product := range config.Products {
+		switch product.DeliveryMode {
+		case "", AfdianDeliveryDirect:
+			if config.Enabled && strings.TrimSpace(config.APIToken) == "" {
+				return common.NewMessage("Afdian credentials and products are required")
+			}
+		case AfdianDeliveryRedemption:
+			if product.SubscriptionPlanID != 0 {
+				return common.NewMessage("Afdian redemption code delivery only supports wallet recharge")
+			}
+		default:
+			return common.NewMessage("Invalid Afdian product configuration")
+		}
 		price, err := decimal.NewFromString(product.Price)
 		if !afdianIDPattern.MatchString(product.PlanID) || seen[product.PlanID] || strings.TrimSpace(product.Name) == "" || len(product.Name) > 100 ||
 			!afdianPricePattern.MatchString(product.Price) || err != nil || !price.IsPositive() || product.SubscriptionPlanID < 0 {

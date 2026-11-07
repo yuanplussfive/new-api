@@ -49,6 +49,7 @@ export function AfdianPayButton(props: AfdianPayButtonProps) {
     mutationFn: () => createAfdianCheckout(props.product.plan_id),
   })
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
+  const codeDelivery = props.product.delivery_mode === 'redemption'
   // The gateway always charges CNY, regardless of the wallet display currency.
   const price = `${formatLocalCurrencyAmount(Number(props.product.price), { showSymbol: false, digitsLarge: 2, locale })} CNY`
 
@@ -77,9 +78,13 @@ export function AfdianPayButton(props: AfdianPayButtonProps) {
         <div className='space-y-4'>
           <p>{t('Pay {{amount}}', { amount: price })}</p>
           <p className='text-muted-foreground text-sm'>
-            {t(
-              'Pay for one month of this Afdian plan. Keep the amount and plan unchanged. Your purchase is delivered after payment verification.'
-            )}
+            {codeDelivery
+              ? t(
+                  'After payment, Afdian sends a redemption code by private message. Paste it into the redemption field in your wallet to add credit.'
+                )
+              : t(
+                  'Pay for one month of this Afdian plan. Keep the amount and plan unchanged. Your purchase is delivered after payment verification.'
+                )}
           </p>
           {!checkout.data ? (
             <Button
@@ -102,16 +107,26 @@ export function AfdianPayButton(props: AfdianPayButtonProps) {
               >
                 {t('Open Afdian checkout')}
               </Button>
-              <div className='flex items-center gap-2 text-xs break-all'>
-                <span>{checkout.data.order_id}</span>
-                <CopyButton value={checkout.data.order_id} />
-              </div>
-              <AfdianOrderVerification
-                key={checkout.data.order_id}
-                orderID={checkout.data.order_id}
-                onPaid={props.onPaid}
-                onNewOrder={() => checkout.reset()}
-              />
+              {checkout.data.delivery_mode === 'redemption' ? (
+                <p role='status' className='text-muted-foreground text-sm'>
+                  {t(
+                    'Check your Afdian private messages after payment, then redeem the code in your wallet.'
+                  )}
+                </p>
+              ) : (
+                <>
+                  <div className='flex items-center gap-2 text-xs break-all'>
+                    <span>{checkout.data.order_id}</span>
+                    <CopyButton value={checkout.data.order_id} />
+                  </div>
+                  <AfdianOrderVerification
+                    key={checkout.data.order_id}
+                    orderID={checkout.data.order_id}
+                    onPaid={props.onPaid}
+                    onNewOrder={() => checkout.reset()}
+                  />
+                </>
+              )}
             </>
           )}
         </div>

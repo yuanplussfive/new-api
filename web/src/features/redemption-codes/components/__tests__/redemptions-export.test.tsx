@@ -52,11 +52,11 @@ function captureDownloads() {
       revokeObjectURL: vi.fn(),
     })
   )
-  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(
-    function (this: HTMLAnchorElement) {
-      downloads.push({ filename: this.download, blob: currentBlob })
-    }
-  )
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+    this: HTMLAnchorElement
+  ) {
+    downloads.push({ filename: this.download, blob: currentBlob })
+  })
   return downloads
 }
 
@@ -176,6 +176,34 @@ test('keeps names containing table delimiters and markup inside one Markdown cel
   expect(await readDownload(downloads[0])).toBe(
     '| Name | Code | Quota |\n| --- | --- | --- |\n| A \\| \\[B\\] \\<x\\> | codeA | $10 |\n'
   )
+})
+
+test('code inventory defaults to TXT with one code per line and no extra fields', async () => {
+  const downloads = captureDownloads()
+  const user = userEvent.setup()
+  render(
+    <RedemptionsExportDialog
+      data={{
+        keys: ['codeA', 'codeB'],
+        name: 'Afdian 16 CNY',
+        quota: '¥20.00',
+      }}
+      defaultFormat='codes'
+      onClose={() => undefined}
+    />
+  )
+  expect(screen.getByRole('checkbox', { name: 'Save as a file' })).toBeChecked()
+  expect(screen.getByRole('radio', { name: 'One code per line' })).toBeChecked()
+  expect(
+    screen.queryByRole('checkbox', { name: 'Include name' })
+  ).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('checkbox', { name: 'Include quota' })
+  ).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Copy all codes' })).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Done' }))
+  expect(downloads[0].filename).toMatch(/\.txt$/)
+  expect(await readDownload(downloads[0])).toBe('codeA\ncodeB\n')
 })
 
 test('successful batch creation opens export with returned codes and the configured currency', async () => {

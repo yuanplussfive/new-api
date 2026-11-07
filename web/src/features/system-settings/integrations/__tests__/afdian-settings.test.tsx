@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
@@ -25,7 +25,9 @@ import { api } from '@/lib/api'
 
 import { AfdianSettingsSection } from '../afdian-settings-section'
 
-vi.mock('@/lib/api', () => ({ api: { get: vi.fn(), put: vi.fn() } }))
+vi.mock('@/lib/api', () => ({
+  api: { get: vi.fn(), put: vi.fn(), post: vi.fn() },
+}))
 
 const config = {
   enabled: false,
@@ -87,4 +89,119 @@ test('clears a newly entered API token after a successful save even when the saf
     ...config,
     api_token: 'replacement-test-token',
   })
+})
+
+test.each([true, false])(
+  'generates codes with the saved product quota and preserves returned inventory when success is %s',
+  async (success) => {
+    const codeConfig = {
+      ...config,
+      enabled: true,
+      products: [
+        {
+          plan_id: 'e'.repeat(32),
+          name: '16 CNY',
+          price: '16.00',
+          quota: 10000000,
+          subscription_plan_id: 0,
+          delivery_mode: 'redemption',
+        },
+      ],
+    }
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        success: true,
+        data: { config: codeConfig, api_token_configured: false },
+      },
+    })
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        success,
+        message: success ? '' : 'Partial batch failure',
+        data: ['codeA', 'codeB'],
+      },
+    })
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AfdianSettingsSection />
+      </QueryClientProvider>
+    )
+    const generate = await screen.findByRole('button', {
+      name: 'Generate delivery codes',
+    })
+    expect(generate).toBeEnabled()
+    fireEvent.change(screen.getByLabelText('Codes per batch'), {
+      target: { value: '2' },
+    })
+    await userEvent.setup().click(generate)
+    expect(
+      await screen.findByRole('dialog', { name: 'Redemption codes created' })
+    ).toBeVisible()
+    expect(
+      screen.getByRole('radio', { name: 'One code per line' })
+    ).toBeChecked()
+    expect(api.post).toHaveBeenCalledWith('/api/redemption/', {
+      name: 'Afdian 16 CNY',
+      quota: 10000000,
+      count: 2,
+      expired_time: 0,
+    })
+  }
+)
+
+test('unsaved delivery changes and invalid batch sizes cannot generate codes', async () => {
+  const codeConfig = {
+    ...config,
+    products: [
+      {
+        plan_id: 'e'.repeat(32),
+        name: '16 CNY',
+        price: '16.00',
+        quota: 10000000,
+        subscription_plan_id: 0,
+        delivery_mode: 'redemption',
+      },
+    ],
+  }
+  vi.mocked(api.get).mockResolvedValue({
+    data: {
+      success: true,
+      data: { config: codeConfig, api_token_configured: false },
+    },
+  })
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AfdianSettingsSection />
+    </QueryClientProvider>
+  )
+  const generate = await screen.findByRole('button', {
+    name: 'Generate delivery codes',
+  })
+  const count = screen.getByLabelText('Codes per batch')
+  for (const value of ['0', '101', '1.5']) {
+    fireEvent.change(count, { target: { value } })
+    expect(count).toHaveAttribute('aria-invalid', 'true')
+    expect(generate).toBeDisabled()
+  }
+  fireEvent.change(count, { target: { value: '2' } })
+  expect(generate).toBeEnabled()
+  fireEvent.change(screen.getByLabelText('Afdian creator user ID'), {
+    target: { value: 'f'.repeat(32) },
+  })
+  expect(
+    screen.getByRole('button', { name: 'Generate delivery codes' })
+  ).toBeDisabled()
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Save product settings before generating codes.'
+  )
+  expect(api.post).not.toHaveBeenCalled()
 })

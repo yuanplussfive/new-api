@@ -231,6 +231,54 @@ describe('Afdian payment', () => {
     expect(api.post).not.toHaveBeenCalled()
   })
 
+  test('code delivery explains private messages without starting verification or claiming automatic credit', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          delivery_mode: 'redemption',
+          checkout_url: `https://afdian.com/order/create?plan_id=${product.plan_id}&month=1&product_type=0`,
+        },
+      },
+    })
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AfdianPayButton
+          product={{ ...product, delivery_mode: 'redemption' }}
+        />
+      </QueryClientProvider>
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Afdian/ }))
+    expect(
+      screen.getByText(
+        'After payment, Afdian sends a redemption code by private message. Paste it into the redemption field in your wallet to add credit.'
+      )
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Continue to payment' })
+    )
+    expect(
+      await screen.findByRole('link', { name: 'Open Afdian checkout' })
+    ).toHaveAttribute(
+      'href',
+      `https://afdian.com/order/create?plan_id=${product.plan_id}&month=1&product_type=0`
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Check your Afdian private messages after payment, then redeem the code in your wallet.'
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Verify payment' })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByLabelText('Afdian order number')
+    ).not.toBeInTheDocument()
+    expect(api.get).not.toHaveBeenCalled()
+  })
+
   test('keeps subscription mappings out of wallet recharge product cards', () => {
     const queryClient = new QueryClient()
     render(

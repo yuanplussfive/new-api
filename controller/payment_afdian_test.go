@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -46,6 +47,31 @@ func TestAfdianConfigurationValidation(t *testing.T) {
 	}
 	base.Products = append(base.Products, base.Products[0])
 	assert.Error(t, setting.ValidateAfdianConfig(base))
+}
+
+func TestAfdianRedemptionDeliveryConfiguration(t *testing.T) {
+	config := setting.AfdianConfig{Enabled: true, UserID: strings.Repeat("a", 32), Products: []setting.AfdianProduct{{
+		PlanID: strings.Repeat("e", 32), Name: "16 CNY", Price: "16.00", Quota: 10000000, DeliveryMode: setting.AfdianDeliveryRedemption,
+	}}}
+	require.NoError(t, setting.ValidateAfdianConfig(config), "native code delivery does not need an Open API token")
+	for _, test := range []struct {
+		name string
+		mode string
+		sub  int
+	}{
+		{"unknown delivery mode", "custom", 0},
+		{"subscription cannot use wallet codes", setting.AfdianDeliveryRedemption, 1},
+		{"legacy direct delivery still requires credentials", "", 0},
+		{"explicit direct delivery still requires credentials", setting.AfdianDeliveryDirect, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			candidate := config
+			candidate.Products = append([]setting.AfdianProduct{}, config.Products...)
+			candidate.Products[0].DeliveryMode = test.mode
+			candidate.Products[0].SubscriptionPlanID = test.sub
+			assert.Error(t, setting.ValidateAfdianConfig(candidate))
+		})
+	}
 }
 
 func TestAfdianSignedQueryRejectsProviderErrorsWithoutLeakingCredentials(t *testing.T) {
@@ -121,7 +147,7 @@ func TestAfdianDatabaseMatrix(t *testing.T) {
 				}
 				require.NoError(t, db.Raw(query).Scan(&databaseName).Error)
 				require.True(t, strings.HasPrefix(databaseName, "codex_afdian_test"), "use a disposable codex_afdian_test database")
-				require.NoError(t, db.Migrator().DropTable(&model.AfdianOrder{}, &model.TopUp{}, &model.User{}, &model.SubscriptionPlan{}, &model.SubscriptionOrder{}, &model.UserSubscription{}, &model.Log{}, &model.Option{}))
+				require.NoError(t, db.Migrator().DropTable(&model.AfdianOrder{}, &model.TopUp{}, &model.User{}, &model.SubscriptionPlan{}, &model.SubscriptionOrder{}, &model.UserSubscription{}, &model.Log{}, &model.Option{}, &model.Redemption{}))
 			}
 			sqlDB, err := db.DB()
 			require.NoError(t, err)
@@ -139,7 +165,7 @@ func TestAfdianDatabaseMatrix(t *testing.T) {
 			})
 			// Preserve a representative pre-provider top-up and its uniqueness
 			// while adding the independent table, then repeat migration.
-			require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.SubscriptionPlan{}, &model.SubscriptionOrder{}, &model.UserSubscription{}, &model.Log{}, &model.Option{}))
+			require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.SubscriptionPlan{}, &model.SubscriptionOrder{}, &model.UserSubscription{}, &model.Log{}, &model.Option{}, &model.Redemption{}))
 			legacy := model.TopUp{TradeNo: "afdian-test-legacy", UserId: 1, Amount: 3, Money: 9.5, PaymentProvider: model.PaymentProviderStripe, Status: common.TopUpStatusSuccess}
 			require.NoError(t, db.Create(&legacy).Error)
 			for range 2 {
@@ -280,6 +306,128 @@ func TestAfdianDatabaseMatrix(t *testing.T) {
 			assert.Contains(t, update.Body.String(), `"success":true`)
 			assert.NotContains(t, update.Body.String(), "test-token")
 			assert.Equal(t, "test-token", setting.GetAfdianConfig().APIToken)
+
+			t.Run("redemption delivery and legacy order isolation", func(t *testing.T) {
+				codeProduct := setting.AfdianProduct{PlanID: strings.Repeat("e", 32), Name: "16 CNY", Price: "16.00", Quota: 10000000, DeliveryMode: setting.AfdianDeliveryRedemption}
+				walletProduct := setting.AfdianProduct{PlanID: product.PlanID, Name: "Legacy credit", Price: "10.00", Quota: 500000}
+				require.NoError(t, model.CreateAfdianOrder(user.Id, "afd_legacy_pending", creator, walletProduct, nil))
+				config.Products = []setting.AfdianProduct{codeProduct}
+				body, err := common.Marshal(config)
+				require.NoError(t, err)
+				saveCodes := httptest.NewRecorder()
+				router.ServeHTTP(saveCodes, httptest.NewRequest(http.MethodPut, "/config", bytes.NewReader(body)))
+				require.Contains(t, saveCodes.Body.String(), `"success":true`)
+				// Blank credentials preserve the token needed by outstanding direct
+				// orders, even after their product is no longer in the catalogue.
+				require.Equal(t, "test-token", setting.GetAfdianConfig().APIToken)
+				assert.True(t, isAfdianEnabled())
+				router.POST("/pay", func(c *gin.Context) { c.Set("id", user.Id); RequestAfdianPay(c) })
+				router.POST("/redemptions", func(c *gin.Context) { c.Set("id", user.Id); AddRedemption(c) })
+				var ordersBefore, topupsBefore int64
+				require.NoError(t, db.Model(&model.AfdianOrder{}).Count(&ordersBefore).Error)
+				require.NoError(t, db.Model(&model.TopUp{}).Count(&topupsBefore).Error)
+				checkout := httptest.NewRecorder()
+				router.ServeHTTP(checkout, httptest.NewRequest(http.MethodPost, "/pay", strings.NewReader(`{"plan_id":"`+codeProduct.PlanID+`","quota":999999999,"delivery_mode":"direct"}`)))
+				var checkoutResult struct {
+					Success bool `json:"success"`
+					Data    struct {
+						CheckoutURL  string `json:"checkout_url"`
+						DeliveryMode string `json:"delivery_mode"`
+						OrderID      string `json:"order_id"`
+					} `json:"data"`
+				}
+				require.NoError(t, common.Unmarshal(checkout.Body.Bytes(), &checkoutResult))
+				require.True(t, checkoutResult.Success)
+				assert.Equal(t, setting.AfdianDeliveryRedemption, checkoutResult.Data.DeliveryMode)
+				assert.Empty(t, checkoutResult.Data.OrderID)
+				checkoutURL, err := url.Parse(checkoutResult.Data.CheckoutURL)
+				require.NoError(t, err)
+				assert.Equal(t, "https", checkoutURL.Scheme)
+				assert.Equal(t, "afdian.com", checkoutURL.Host)
+				assert.Equal(t, codeProduct.PlanID, checkoutURL.Query().Get("plan_id"))
+				assert.False(t, checkoutURL.Query().Has("custom_order_id"))
+				var ordersAfter, topupsAfter int64
+				require.NoError(t, db.Model(&model.AfdianOrder{}).Count(&ordersAfter).Error)
+				require.NoError(t, db.Model(&model.TopUp{}).Count(&topupsAfter).Error)
+				assert.Equal(t, ordersBefore, ordersAfter)
+				assert.Equal(t, topupsBefore, topupsAfter)
+				assert.ErrorIs(t, model.CreateAfdianOrder(user.Id, "afd_must_not_credit", creator, codeProduct, nil), model.ErrAfdianPaymentMismatch)
+				// Generate through the standard code API. Credit is deferred until
+				// redemption; purchasing and generating inventory do not add quota.
+				require.NoError(t, db.First(&updated, user.Id).Error)
+				quotaBefore := updated.Quota
+				generation := httptest.NewRecorder()
+				router.ServeHTTP(generation, httptest.NewRequest(http.MethodPost, "/redemptions", strings.NewReader(`{"name":"Afdian 16 CNY","quota":10000000,"count":2,"expired_time":0}`)))
+				var generated struct {
+					Success bool     `json:"success"`
+					Data    []string `json:"data"`
+				}
+				require.NoError(t, common.Unmarshal(generation.Body.Bytes(), &generated))
+				require.True(t, generated.Success)
+				require.Len(t, generated.Data, 2)
+				assert.NotEqual(t, generated.Data[0], generated.Data[1])
+				require.NoError(t, db.First(&updated, user.Id).Error)
+				assert.Equal(t, quotaBefore, updated.Quota)
+				quota, err := model.Redeem(generated.Data[0], user.Id)
+				require.NoError(t, err)
+				assert.Equal(t, 10000000, quota)
+				_, err = model.Redeem(generated.Data[0], user.Id)
+				assert.Error(t, err)
+				require.NoError(t, db.First(&updated, user.Id).Error)
+				assert.Equal(t, quotaBefore+10000000, updated.Quota)
+				// Outstanding direct orders still settle using their immutable
+				// terms while the new plan delivers codes independently.
+				legacyPayment := payment
+				legacyPayment.OutTradeNo, legacyPayment.CustomOrderID = "paid-legacy-pending", "afd_legacy_pending"
+				fakePaid, err = common.Marshal(map[string]any{"ec": 200, "data": map[string]any{"list": []model.AfdianPayment{legacyPayment}}})
+				require.NoError(t, err)
+				legacyWebhook := httptest.NewRecorder()
+				router.ServeHTTP(legacyWebhook, httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(`{"ec":200,"data":{"type":"order","order":{"out_trade_no":"paid-legacy-pending"}}}`)))
+				assert.JSONEq(t, `{"ec":200,"em":"ok"}`, legacyWebhook.Body.String())
+				require.NoError(t, db.First(&updated, user.Id).Error)
+				assert.Equal(t, quotaBefore+10000000+500000, updated.Quota)
+				// Removing a direct product cannot bypass the protection against
+				// reusing its plan for code delivery.
+				walletProduct.DeliveryMode = setting.AfdianDeliveryRedemption
+				config.Products = []setting.AfdianProduct{walletProduct}
+				body, err = common.Marshal(config)
+				require.NoError(t, err)
+				rejected := httptest.NewRecorder()
+				router.ServeHTTP(rejected, httptest.NewRequest(http.MethodPut, "/config", bytes.NewReader(body)))
+				assert.Contains(t, rejected.Body.String(), `"success":false`)
+				assert.Contains(t, rejected.Body.String(), "Use a separate Afdian plan")
+				assert.Equal(t, codeProduct.PlanID, setting.GetAfdianConfig().Products[0].PlanID)
+				// The reverse switch could also grant both a code and automatic
+				// credit while the provider still has code inventory.
+				config.Products = []setting.AfdianProduct{codeProduct}
+				config.Products[0].DeliveryMode = setting.AfdianDeliveryDirect
+				config.APIToken = "test-token"
+				body, err = common.Marshal(config)
+				require.NoError(t, err)
+				rejected = httptest.NewRecorder()
+				router.ServeHTTP(rejected, httptest.NewRequest(http.MethodPut, "/config", bytes.NewReader(body)))
+				assert.Contains(t, rejected.Body.String(), `"success":false`)
+				assert.Contains(t, rejected.Body.String(), "Use a separate Afdian plan")
+				// A fresh code-only installation acknowledges notifications
+				// without Open API calls and never treats them as wallet credit.
+				config.Products = []setting.AfdianProduct{codeProduct}
+				config.APIToken = ""
+				body, err = common.Marshal(config)
+				require.NoError(t, err)
+				require.NoError(t, setting.UpdateAfdianConfig(string(body)))
+				queried := false
+				http.DefaultTransport = afdianTestTransport(func(*http.Request) (*http.Response, error) {
+					queried = true
+					return &http.Response{StatusCode: http.StatusForbidden, Body: io.NopCloser(strings.NewReader("blocked")), Header: make(http.Header)}, nil
+				})
+				codeWebhook := httptest.NewRecorder()
+				router.ServeHTTP(codeWebhook, httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(`{"ec":200,"data":{"type":"order","order":{"out_trade_no":"paid-native-code"}}}`)))
+				assert.JSONEq(t, `{"ec":200,"em":"ok"}`, codeWebhook.Body.String())
+				assert.False(t, queried)
+				assert.True(t, isAfdianEnabled())
+				require.NoError(t, db.First(&updated, user.Id).Error)
+				assert.Equal(t, quotaBefore+10000000+500000, updated.Quota)
+			})
 		})
 	}
 }

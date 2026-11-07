@@ -43,7 +43,26 @@ func SaveAfdianConfig(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	previous := setting.GetAfdianConfig()
 	for _, product := range config.Products {
+		for _, existing := range previous.Products {
+			if previous.UserID == config.UserID && existing.PlanID == product.PlanID &&
+				(existing.DeliveryMode == setting.AfdianDeliveryRedemption) != (product.DeliveryMode == setting.AfdianDeliveryRedemption) {
+				common.ApiErrorT(c, "Use a separate Afdian plan for redemption code delivery to avoid duplicate credit")
+				return
+			}
+		}
+		if product.DeliveryMode == setting.AfdianDeliveryRedemption {
+			used, err := model.AfdianPlanHasDirectOrders(config.UserID, product.PlanID)
+			if err != nil {
+				common.ApiErrorT(c, "Failed to save configuration")
+				return
+			}
+			if used {
+				common.ApiErrorT(c, "Use a separate Afdian plan for redemption code delivery to avoid duplicate credit")
+				return
+			}
+		}
 		if product.SubscriptionPlanID > 0 {
 			if _, err := model.GetSubscriptionPlanById(product.SubscriptionPlanID); err != nil {
 				common.ApiErrorT(c, "Subscription plan does not exist")
@@ -66,7 +85,7 @@ func SaveAfdianConfig(c *gin.Context) {
 
 func isAfdianEnabled() bool {
 	config := setting.GetAfdianConfig()
-	return operation_setting.IsPaymentComplianceConfirmed() && config.Enabled && config.UserID != "" && config.APIToken != "" && len(config.Products) > 0
+	return operation_setting.IsPaymentComplianceConfirmed() && config.Enabled && setting.ValidateAfdianConfig(config) == nil
 }
 
 func RequestAfdianPay(c *gin.Context) {
@@ -94,6 +113,13 @@ func RequestAfdianPay(c *gin.Context) {
 	}
 	if selected == nil {
 		common.ApiErrorT(c, "Product does not exist")
+		return
+	}
+	if selected.DeliveryMode == setting.AfdianDeliveryRedemption {
+		// Afdian distributes pre-generated codes from its native random-reply
+		// inventory. There is no local payment order or automatic wallet credit.
+		query := url.Values{"plan_id": {selected.PlanID}, "product_type": {"0"}, "month": {"1"}}
+		common.ApiSuccess(c, gin.H{"checkout_url": "https://afdian.com/order/create?" + query.Encode(), "delivery_mode": setting.AfdianDeliveryRedemption})
 		return
 	}
 	userID := c.GetInt("id")
@@ -131,7 +157,7 @@ func RequestAfdianPay(c *gin.Context) {
 		return
 	}
 	query := url.Values{"plan_id": {selected.PlanID}, "product_type": {"0"}, "month": {"1"}, "custom_order_id": {tradeNo}}
-	common.ApiSuccess(c, gin.H{"checkout_url": "https://afdian.com/order/create?" + query.Encode(), "order_id": tradeNo})
+	common.ApiSuccess(c, gin.H{"checkout_url": "https://afdian.com/order/create?" + query.Encode(), "order_id": tradeNo, "delivery_mode": setting.AfdianDeliveryDirect})
 }
 
 // Afdian's notification is only a hint. Neither its amount nor its user/order
@@ -161,6 +187,12 @@ func AfdianWebhook(c *gin.Context) {
 		return
 	}
 	config := setting.GetAfdianConfig()
+	if config.APIToken == "" {
+		// Code-only configurations do not need Open API credentials or a
+		// webhook to deliver purchases. No payment data is used for credit.
+		c.JSON(http.StatusOK, gin.H{"ec": 200, "em": "ok"})
+		return
+	}
 	payment, err := service.QueryAfdianOrder(c.Request.Context(), nil, config, event.Data.Order.OutTradeNo)
 	if err != nil {
 		logger.LogWarn(c.Request.Context(), common.LogText("Afdian webhook query failed order_id=%s", event.Data.Order.OutTradeNo))
