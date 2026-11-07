@@ -25,7 +25,6 @@ import { CopyButton } from '@/components/copy-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { createRedemption } from '@/features/redemption-codes/api'
 import {
   RedemptionsExportDialog,
@@ -44,7 +43,6 @@ export function AfdianCodeDelivery(props: {
   products: AfdianProduct[]
   disabled: boolean
   unsaved: boolean
-  onDeliveryModeChange: (planID: string, mode: 'direct' | 'redemption') => void
 }) {
   const { t, i18n } = useTranslation()
   const id = useId()
@@ -98,11 +96,6 @@ export function AfdianCodeDelivery(props: {
       className='space-y-4 rounded-lg border p-4'
     >
       <h4 className='font-medium'>{t('Afdian delivery and code inventory')}</h4>
-      <p className='text-muted-foreground text-sm'>
-        {t(
-          'Use a separate Afdian plan for redemption code delivery to avoid duplicate credit'
-        )}
-      </p>
       <div className='space-y-2'>
         <Label htmlFor={`${id}-count`}>{t('Codes per batch')}</Label>
         <Input
@@ -132,61 +125,30 @@ export function AfdianCodeDelivery(props: {
                 digitsLarge: 2,
                 locale,
               })}{' '}
-              CNY
-              {!product.subscription_plan_id && (
-                <>
-                  {' '}
-                  ·{' '}
-                  {t('Credit {{amount}}', {
-                    amount: formatQuotaWithCurrency(product.quota, {
-                      abbreviate: false,
-                    }),
-                  })}
-                </>
-              )}
+              CNY ·{' '}
+              {t('Credit {{amount}}', {
+                amount: formatQuotaWithCurrency(product.quota, {
+                  abbreviate: false,
+                }),
+              })}
             </p>
           </div>
-          <NativeSelect
-            aria-label={t('Delivery method for {{name}}', {
-              name: product.name,
-            })}
-            value={product.delivery_mode ?? 'direct'}
-            disabled={props.disabled || generate.isPending}
-            onChange={(event) => {
-              const mode = event.target.value
-              if (mode === 'direct' || mode === 'redemption') {
-                props.onDeliveryModeChange(product.plan_id, mode)
-              }
-            }}
+          <Button
+            type='button'
+            disabled={
+              props.disabled ||
+              props.unsaved ||
+              generate.isPending ||
+              !validCount ||
+              created !== null
+            }
+            onClick={() => generate.mutate(product)}
           >
-            <NativeSelectOption value='direct'>
-              {t('Automatic credit after verification')}
-            </NativeSelectOption>
-            <NativeSelectOption
-              value='redemption'
-              disabled={Boolean(product.subscription_plan_id)}
-            >
-              {t('Redemption code by Afdian private message')}
-            </NativeSelectOption>
-          </NativeSelect>
-          {product.delivery_mode === 'redemption' && (
-            <Button
-              type='button'
-              disabled={
-                props.disabled ||
-                props.unsaved ||
-                generate.isPending ||
-                !validCount ||
-                created !== null
-              }
-              onClick={() => generate.mutate(product)}
-            >
-              {generate.isPending &&
-              generate.variables?.plan_id === product.plan_id
-                ? t('Generating...')
-                : t('Generate delivery codes')}
-            </Button>
-          )}
+            {generate.isPending &&
+            generate.variables?.plan_id === product.plan_id
+              ? t('Generating...')
+              : t('Generate delivery codes')}
+          </Button>
         </div>
       ))}
       <p className='text-muted-foreground text-sm'>

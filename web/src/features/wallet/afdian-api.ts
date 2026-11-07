@@ -26,19 +26,10 @@ export interface AfdianProduct {
   name: string
   price: string
   quota: number
-  subscription_plan_id: number
-  delivery_mode?: 'direct' | 'redemption'
 }
 
-export type AfdianCheckout =
-  | { order_id: string; checkout_url: string; delivery_mode?: 'direct' }
-  | { order_id?: never; checkout_url: string; delivery_mode: 'redemption' }
-
-export async function getAfdianPaymentStatus(orderID: string): Promise<string> {
-  const response = await api.get(
-    `/api/user/afdian/orders/${encodeURIComponent(orderID)}`
-  )
-  return requireServerSuccess(response.data).data.status
+export interface AfdianCheckout {
+  checkout_url: string
 }
 
 export async function createAfdianCheckout(
@@ -51,22 +42,5 @@ export async function createAfdianCheckout(
   if (url.origin !== 'https://afdian.com' || url.pathname !== '/order/create') {
     throw new Error(t('Failed to start payment'))
   }
-  if (
-    checkout.delivery_mode !== 'redemption' &&
-    (typeof checkout.order_id !== 'string' || !checkout.order_id)
-  ) {
-    throw new Error(t('Failed to start payment'))
-  }
   return checkout
-}
-
-export async function checkAfdianPayment(
-  orderID: string,
-  outTradeNo: string
-): Promise<void> {
-  const response = await api.post('/api/user/afdian/check', {
-    order_id: orderID,
-    out_trade_no: outTradeNo,
-  })
-  requireServerSuccess(response.data)
 }

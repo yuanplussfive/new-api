@@ -55,7 +55,6 @@ import { AfdianProductsSection } from './afdian-payment'
 import { CreemProductsSection } from './creem-products-section'
 
 interface RechargeFormCardProps {
-  onAfdianPaid?: () => void | Promise<void>
   topupInfo: TopupInfo | null
   presetAmounts: PresetAmount[]
   selectedPreset: number | null
@@ -86,7 +85,6 @@ interface RechargeFormCardProps {
 }
 
 export function RechargeFormCard({
-  onAfdianPaid,
   topupInfo,
   presetAmounts,
   selectedPreset,
@@ -140,7 +138,7 @@ export function RechargeFormCard({
     enableWaffoPancakeTopup
   const hasAfdianTopup =
     topupInfo?.enable_afdian_topup &&
-    topupInfo.afdian_products?.some((product) => !product.subscription_plan_id)
+    (topupInfo.afdian_products?.length ?? 0) > 0
   const hasAnyTopup = hasConfigurableTopup || enableCreemTopup || hasAfdianTopup
   const hasStandardPaymentMethods =
     Array.isArray(topupInfo?.pay_methods) && topupInfo.pay_methods.length > 0
@@ -504,10 +502,7 @@ export function RechargeFormCard({
       )}
 
       {hasAfdianTopup && (
-        <AfdianProductsSection
-          products={topupInfo?.afdian_products ?? []}
-          onPaid={onAfdianPaid}
-        />
+        <AfdianProductsSection products={topupInfo?.afdian_products ?? []} />
       )}
       {/* Creem Products Section */}
       {enableCreemTopup &&

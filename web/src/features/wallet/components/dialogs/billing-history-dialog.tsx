@@ -47,7 +47,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatCurrencyFromUSD, formatQuotaWithCurrency } from '@/lib/currency'
 import { formatNumber } from '@/lib/format'
-import { useAuthStore } from '@/stores/auth-store'
 
 import { useBillingHistory } from '../../hooks/use-billing-history'
 import {
@@ -55,7 +54,6 @@ import {
   getPaymentMethodName,
   formatTimestamp,
 } from '../../lib/billing'
-import { AfdianOrderVerification } from '../afdian-payment'
 
 interface BillingHistoryDialogProps {
   open: boolean
@@ -80,12 +78,9 @@ export function BillingHistoryDialog({
     handlePageSizeChange,
     handleSearch,
     handleCompleteOrder,
-    refresh,
   } = useBillingHistory()
 
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
-  const [afdianTradeNo, setAfdianTradeNo] = useState<string | null>(null)
-  const currentUserID = useAuthStore((state) => state.auth.user?.id)
   const { copyToClipboard, copiedText } = useCopyToClipboard({ notify: false })
 
   const totalPages = Math.ceil(total / pageSize)
@@ -274,17 +269,6 @@ export function BillingHistoryDialog({
                       </div>
 
                       {/* Admin Actions */}
-                      {record.payment_method === 'afdian' &&
-                        record.status === 'pending' &&
-                        record.user_id === currentUserID && (
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            onClick={() => setAfdianTradeNo(record.trade_no)}
-                          >
-                            {t('Verify payment')}
-                          </Button>
-                        )}
                       {isAdmin &&
                         record.status === 'pending' &&
                         record.payment_method !== 'afdian' && (
@@ -344,21 +328,6 @@ export function BillingHistoryDialog({
       </Dialog>
 
       {/* Confirm Complete Order Dialog */}
-      <Dialog
-        open={afdianTradeNo !== null}
-        onOpenChange={(value) => {
-          if (!value) setAfdianTradeNo(null)
-        }}
-        title={t('Verify payment')}
-      >
-        {afdianTradeNo && (
-          <AfdianOrderVerification
-            key={afdianTradeNo}
-            orderID={afdianTradeNo}
-            onPaid={refresh}
-          />
-        )}
-      </Dialog>
       <AlertDialog
         open={!!confirmTradeNo}
         onOpenChange={(open) => !open && setConfirmTradeNo(null)}

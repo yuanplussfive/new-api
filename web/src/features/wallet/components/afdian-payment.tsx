@@ -16,30 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState, useEffect, useRef } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatLocalCurrencyAmount } from '@/lib/currency'
 import { formatQuota } from '@/lib/format'
 
-import {
-  createAfdianCheckout,
-  checkAfdianPayment,
-  getAfdianPaymentStatus,
-  type AfdianProduct,
-} from '../afdian-api'
+import { createAfdianCheckout, type AfdianProduct } from '../afdian-api'
 
 interface AfdianPayButtonProps {
   product: AfdianProduct
   disabled?: boolean
-  onPaid?: () => void | Promise<void>
 }
 
 export function AfdianPayButton(props: AfdianPayButtonProps) {
@@ -49,7 +40,6 @@ export function AfdianPayButton(props: AfdianPayButtonProps) {
     mutationFn: () => createAfdianCheckout(props.product.plan_id),
   })
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
-  const codeDelivery = props.product.delivery_mode === 'redemption'
   // The gateway always charges CNY, regardless of the wallet display currency.
   const price = `${formatLocalCurrencyAmount(Number(props.product.price), { showSymbol: false, digitsLarge: 2, locale })} CNY`
 
@@ -78,13 +68,9 @@ export function AfdianPayButton(props: AfdianPayButtonProps) {
         <div className='space-y-4'>
           <p>{t('Pay {{amount}}', { amount: price })}</p>
           <p className='text-muted-foreground text-sm'>
-            {codeDelivery
-              ? t(
-                  'After payment, Afdian sends a redemption code by private message. Paste it into the redemption field in your wallet to add credit.'
-                )
-              : t(
-                  'Pay for one month of this Afdian plan. Keep the amount and plan unchanged. Your purchase is delivered after payment verification.'
-                )}
+            {t(
+              'After payment, Afdian sends a redemption code by private message. Paste it into the redemption field in your wallet to add credit.'
+            )}
           </p>
           {!checkout.data ? (
             <Button
@@ -107,26 +93,11 @@ export function AfdianPayButton(props: AfdianPayButtonProps) {
               >
                 {t('Open Afdian checkout')}
               </Button>
-              {checkout.data.delivery_mode === 'redemption' ? (
-                <p role='status' className='text-muted-foreground text-sm'>
-                  {t(
-                    'Check your Afdian private messages after payment, then redeem the code in your wallet.'
-                  )}
-                </p>
-              ) : (
-                <>
-                  <div className='flex items-center gap-2 text-xs break-all'>
-                    <span>{checkout.data.order_id}</span>
-                    <CopyButton value={checkout.data.order_id} />
-                  </div>
-                  <AfdianOrderVerification
-                    key={checkout.data.order_id}
-                    orderID={checkout.data.order_id}
-                    onPaid={props.onPaid}
-                    onNewOrder={() => checkout.reset()}
-                  />
-                </>
-              )}
+              <p role='status' className='text-muted-foreground text-sm'>
+                {t(
+                  'Check your Afdian private messages after payment, then redeem the code in your wallet.'
+                )}
+              </p>
             </>
           )}
         </div>
@@ -135,77 +106,9 @@ export function AfdianPayButton(props: AfdianPayButtonProps) {
   )
 }
 
-export function AfdianOrderVerification(props: {
-  orderID: string
-  onPaid?: () => void | Promise<void>
-  onNewOrder?: () => void
-}) {
+export function AfdianProductsSection(props: { products: AfdianProduct[] }) {
   const { t } = useTranslation()
-  const [outTradeNo, setOutTradeNo] = useState('')
-  const notified = useRef(false)
-  const verification = useMutation({
-    mutationFn: () => checkAfdianPayment(props.orderID, outTradeNo.trim()),
-  })
-  const status = useQuery({
-    queryKey: ['afdian-order', props.orderID],
-    queryFn: () => getAfdianPaymentStatus(props.orderID),
-    enabled: !verification.isSuccess,
-    refetchInterval: (query) => (query.state.data === 'success' ? false : 5000),
-  })
-  const delivered = verification.isSuccess || status.data === 'success'
-  const onPaid = props.onPaid
-  useEffect(() => {
-    if (delivered && !notified.current) {
-      notified.current = true
-      void onPaid?.()
-    }
-  }, [delivered, onPaid])
-  if (delivered) {
-    return (
-      <div className='space-y-2'>
-        <p role='status'>{t('Payment verified')}</p>
-        {props.onNewOrder && (
-          <Button onClick={props.onNewOrder}>
-            {t('Create another order')}
-          </Button>
-        )}
-      </div>
-    )
-  }
-  return (
-    <div className='space-y-2'>
-      <Label htmlFor={`afdian-order-${props.orderID}`}>
-        {t('Afdian order number')}
-      </Label>
-      <Input
-        id={`afdian-order-${props.orderID}`}
-        value={outTradeNo}
-        maxLength={64}
-        onChange={(event) => setOutTradeNo(event.target.value)}
-      />
-      <p className='text-muted-foreground text-xs'>
-        {t(
-          'Usually credited automatically. If it is delayed, enter the paid order number from Afdian to verify again.'
-        )}
-      </p>
-      <Button
-        disabled={!outTradeNo.trim() || verification.isPending}
-        onClick={() => verification.mutate()}
-      >
-        {t('Verify payment')}
-      </Button>
-    </div>
-  )
-}
-
-export function AfdianProductsSection(props: {
-  products: AfdianProduct[]
-  onPaid?: () => void | Promise<void>
-}) {
-  const { t } = useTranslation()
-  const products = props.products.filter(
-    (product) => !product.subscription_plan_id
-  )
+  const products = props.products
   if (products.length === 0) return null
   return (
     <section aria-label={t('Afdian')} className='space-y-3 border-t pt-4'>
@@ -223,7 +126,7 @@ export function AfdianProductsSection(props: {
             <p>
               {t('Credit {{amount}}', { amount: formatQuota(product.quota) })}
             </p>
-            <AfdianPayButton product={product} onPaid={props.onPaid} />
+            <AfdianPayButton product={product} />
           </div>
         ))}
       </div>

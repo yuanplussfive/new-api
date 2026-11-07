@@ -63,7 +63,7 @@ func SetApiRouter(router *gin.Engine) {
 
 		apiRouter.POST("/stripe/webhook", anonymousRequestBodyLimit, controller.StripeWebhook)
 		apiRouter.POST("/creem/webhook", anonymousRequestBodyLimit, controller.CreemWebhook)
-		apiRouter.POST("/afdian/webhook", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.AfdianWebhook)
+		apiRouter.POST("/afdian/webhook", controller.AfdianPaymentRetired)
 		apiRouter.POST("/waffo/webhook", anonymousRequestBodyLimit, controller.WaffoWebhook)
 		// :env separates test vs prod URLs so the operator can register each
 		// in Pancake's matching webhook slot; handler enforces env match.
@@ -129,8 +129,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/stripe/amount", controller.RequestStripeAmount)
 				selfRoute.POST("/creem/pay", middleware.CriticalRateLimit(), controller.RequestCreemPay)
 				selfRoute.POST("/afdian/pay", middleware.CriticalRateLimit(), controller.RequestAfdianPay)
-				selfRoute.POST("/afdian/check", middleware.CriticalRateLimit(), controller.CheckAfdianPayment)
-				selfRoute.GET("/afdian/orders/:order_id", controller.GetAfdianPaymentStatus)
+				selfRoute.POST("/afdian/check", controller.AfdianPaymentRetired)
+				selfRoute.GET("/afdian/orders/:order_id", controller.AfdianPaymentRetired)
 				selfRoute.POST("/waffo/amount", controller.RequestWaffoAmount)
 				selfRoute.POST("/waffo/pay", middleware.CriticalRateLimit(), controller.RequestWaffoPay)
 				selfRoute.POST("/waffo-pancake/amount", controller.RequestWaffoPancakeAmount)

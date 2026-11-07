@@ -32,20 +32,19 @@ vi.mock('@/lib/api', () => ({
 const config = {
   enabled: false,
   user_id: 'a'.repeat(32),
-  api_token: '',
   products: [],
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(api.get).mockResolvedValue({
-    data: { success: true, data: { config, api_token_configured: true } },
+    data: { success: true, data: { config } },
   })
 })
 
-test('loads safe settings and sends a blank token when retaining the existing credential', async () => {
+test('loads and saves code delivery settings without credentials or webhook configuration', async () => {
   vi.mocked(api.put).mockResolvedValue({
-    data: { success: true, data: { config, api_token_configured: true } },
+    data: { success: true, data: { config } },
   })
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -55,40 +54,20 @@ test('loads safe settings and sends a blank token when retaining the existing cr
       <AfdianSettingsSection />
     </QueryClientProvider>
   )
-  await screen.findByText('Configured. Leave blank to keep the current token.')
-  const input = screen.getByLabelText('API Token')
-  expect(input).toHaveAttribute('type', 'password')
-  expect(input).toHaveValue('')
+  await waitFor(() =>
+    expect(screen.getByLabelText('Afdian creator user ID')).toHaveValue(
+      config.user_id
+    )
+  )
+  expect(screen.queryByLabelText('API Token')).not.toBeInTheDocument()
+  expect(screen.queryByText('Webhook URL')).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('Delivery mode')).not.toBeInTheDocument()
   await userEvent
     .setup()
     .click(screen.getByRole('button', { name: 'Save Afdian settings' }))
   await waitFor(() =>
     expect(api.put).toHaveBeenCalledWith('/api/option/afdian', config)
   )
-})
-
-test('clears a newly entered API token after a successful save even when the safe response is unchanged', async () => {
-  vi.mocked(api.put).mockResolvedValue({
-    data: { success: true, data: { config, api_token_configured: true } },
-  })
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  render(
-    <QueryClientProvider client={queryClient}>
-      <AfdianSettingsSection />
-    </QueryClientProvider>
-  )
-  await screen.findByText('Configured. Leave blank to keep the current token.')
-  const user = userEvent.setup()
-  const input = screen.getByLabelText('API Token')
-  await user.type(input, 'replacement-test-token')
-  await user.click(screen.getByRole('button', { name: 'Save Afdian settings' }))
-  await waitFor(() => expect(input).toHaveValue(''))
-  expect(api.put).toHaveBeenCalledWith('/api/option/afdian', {
-    ...config,
-    api_token: 'replacement-test-token',
-  })
 })
 
 test.each([true, false])(
@@ -103,15 +82,13 @@ test.each([true, false])(
           name: '16 CNY',
           price: '16.00',
           quota: 10000000,
-          subscription_plan_id: 0,
-          delivery_mode: 'redemption',
         },
       ],
     }
     vi.mocked(api.get).mockResolvedValue({
       data: {
         success: true,
-        data: { config: codeConfig, api_token_configured: false },
+        data: { config: codeConfig },
       },
     })
     vi.mocked(api.post).mockResolvedValue({
@@ -164,15 +141,13 @@ test('unsaved delivery changes and invalid batch sizes cannot generate codes', a
         name: '16 CNY',
         price: '16.00',
         quota: 10000000,
-        subscription_plan_id: 0,
-        delivery_mode: 'redemption',
       },
     ],
   }
   vi.mocked(api.get).mockResolvedValue({
     data: {
       success: true,
-      data: { config: codeConfig, api_token_configured: false },
+      data: { config: codeConfig },
     },
   })
   const queryClient = new QueryClient({

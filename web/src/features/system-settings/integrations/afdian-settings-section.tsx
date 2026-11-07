@@ -24,7 +24,6 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-import { CopyButton } from '@/components/copy-button'
 import { JsonCodeEditor } from '@/components/json-code-editor'
 import { Button } from '@/components/ui/button'
 import {
@@ -51,15 +50,12 @@ const afdianProductsSchema = z.array(
     name: z.string(),
     price: z.string(),
     quota: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-    subscription_plan_id: z.number().int().nonnegative(),
-    delivery_mode: z.enum(['direct', 'redemption']).optional(),
   })
 )
 
 const afdianSchema = z.object({
   enabled: z.boolean(),
   user_id: z.string(),
-  api_token: z.string(),
   products: z.string().refine((value) => {
     try {
       return Array.isArray(JSON.parse(value))
@@ -73,14 +69,12 @@ interface AfdianConfigResponse {
   config: {
     enabled: boolean
     user_id: string
-    api_token: string
     products: AfdianProduct[]
   }
-  api_token_configured: boolean
 }
 
-// Creem's editor restricts currencies to USD/EUR and cannot express a site
-// subscription mapping. Reuse the shared JSON editor for this provider schema.
+// Creem's editor restricts currencies to USD/EUR. Reuse the shared JSON
+// editor for CNY plans with redemption quotas.
 export function AfdianSettingsSection() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -97,7 +91,6 @@ export function AfdianSettingsSection() {
     defaultValues: {
       enabled: false,
       user_id: '',
-      api_token: '',
       products: '[]',
     },
   })
@@ -105,7 +98,6 @@ export function AfdianSettingsSection() {
     if (query.data) {
       form.reset({
         ...query.data.config,
-        api_token: '',
         products: JSON.stringify(query.data.config.products, null, 2),
       })
     }
@@ -122,13 +114,11 @@ export function AfdianSettingsSection() {
       queryClient.setQueryData(['afdian-settings'], data)
       form.reset({
         ...data.config,
-        api_token: '',
         products: JSON.stringify(data.config.products, null, 2),
       })
       toast.success(t('Settings updated successfully'))
     },
   })
-  const webhook = `${window.location.origin}/api/afdian/webhook`
   const productsJSON = useWatch({ control: form.control, name: 'products' })
   let products: AfdianProduct[] = []
   try {
@@ -151,15 +141,9 @@ export function AfdianSettingsSection() {
         <h3 className='text-lg font-medium'>{t('Afdian')}</h3>
         <p className='text-muted-foreground text-sm'>
           {t(
-            'Configure your Afdian creator Open API credentials and one-month plans. Prices are always in CNY.'
+            'Configure Afdian plans and redemption code delivery. Prices are in CNY. No Open API token or payment webhook is required.'
           )}
         </p>
-        <div className='flex flex-wrap items-center gap-2 text-sm'>
-          <span>
-            {t('Webhook URL')}: {webhook}
-          </span>
-          <CopyButton value={webhook} />
-        </div>
         <FormField
           control={form.control}
           name='enabled'
@@ -190,36 +174,6 @@ export function AfdianSettingsSection() {
         />
         <FormField
           control={form.control}
-          name='api_token'
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('API Token')}</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  type='password'
-                  autoComplete='new-password'
-                  maxLength={512}
-                />
-              </FormControl>
-              <FormDescription>
-                <span>
-                  {query.data?.api_token_configured
-                    ? t('Configured. Leave blank to keep the current token.')
-                    : t('Enter the token from your Afdian Open API settings.')}
-                </span>{' '}
-                <span>
-                  {t(
-                    'Optional when every product uses redemption code delivery.'
-                  )}
-                </span>
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
           name='products'
           render={({ field }) => (
             <FormItem>
@@ -229,7 +183,7 @@ export function AfdianSettingsSection() {
               </FormControl>
               <FormDescription>
                 {t(
-                  'Set plan_id, name, price (CNY string), quota (raw wallet units), and subscription_plan_id (0 for wallet recharge). For a subscription, set quota to 0 and use its site plan ID.'
+                  'Set plan_id, name, price (CNY string), and quota (raw wallet units). Each code grants the configured quota when redeemed.'
                 )}
               </FormDescription>
               <pre className='overflow-x-auto rounded border p-3 text-xs'>
@@ -240,8 +194,6 @@ export function AfdianSettingsSection() {
                       name: 'Wallet credit',
                       price: '10.00',
                       quota: 500000,
-                      subscription_plan_id: 0,
-                      delivery_mode: 'redemption',
                     },
                   ],
                   null,
@@ -256,21 +208,6 @@ export function AfdianSettingsSection() {
           products={products}
           disabled={query.isPending || query.isError || save.isPending}
           unsaved={form.formState.isDirty}
-          onDeliveryModeChange={(planID, mode) =>
-            form.setValue(
-              'products',
-              JSON.stringify(
-                products.map((product) =>
-                  product.plan_id === planID
-                    ? { ...product, delivery_mode: mode }
-                    : product
-                ),
-                null,
-                2
-              ),
-              { shouldDirty: true, shouldValidate: true }
-            )
-          }
         />
         <Button
           type='button'
@@ -283,11 +220,11 @@ export function AfdianSettingsSection() {
         </Button>
         <a
           className='block text-sm underline'
-          href='https://afdian.com/dashboard/dev'
+          href='https://afdian.com/dashboard'
           target='_blank'
           rel='noopener noreferrer'
         >
-          {t('Open Afdian developer settings')}
+          {t('Open Afdian dashboard')}
         </a>
       </div>
     </Form>
