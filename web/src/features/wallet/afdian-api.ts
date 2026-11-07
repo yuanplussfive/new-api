@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { t } from 'i18next'
+
 import { api } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
@@ -47,7 +49,7 @@ export async function createAfdianCheckout(
   const checkout = result.data as AfdianCheckout
   const url = new URL(checkout.checkout_url)
   if (url.origin !== 'https://afdian.com' || url.pathname !== '/order/create') {
-    throw new Error('Invalid payment URL')
+    throw new Error(t('Failed to start payment'))
   }
   return checkout
 }

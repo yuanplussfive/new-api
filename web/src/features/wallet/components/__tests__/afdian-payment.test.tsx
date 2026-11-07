@@ -131,7 +131,7 @@ describe('Afdian payment', () => {
       },
     })
     await expect(createAfdianCheckout(product.plan_id)).rejects.toThrow(
-      'Invalid payment URL'
+      'Failed to start payment'
     )
   })
 

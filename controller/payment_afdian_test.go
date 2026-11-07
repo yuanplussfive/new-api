@@ -237,6 +237,8 @@ func TestAfdianDatabaseMatrix(t *testing.T) {
 			router.POST("/webhook", AfdianWebhook)
 			router.POST("/check", func(c *gin.Context) { c.Set("id", user.Id+1); CheckAfdianPayment(c) })
 			router.GET("/config", GetAfdianConfig)
+			router.PUT("/config", SaveAfdianConfig)
+			router.GET("/status/:order_id", func(c *gin.Context) { c.Set("id", user.Id+1); GetAfdianPaymentStatus(c) })
 			webhook := httptest.NewRecorder()
 			router.ServeHTTP(webhook, httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(`{"ec":200,"data":{"type":"order","order":{"out_trade_no":"paid-1","total_amount":"999999999","custom_order_id":"afd_checkout2"}}}`)))
 			assert.Equal(t, http.StatusOK, webhook.Code)
@@ -247,6 +249,20 @@ func TestAfdianDatabaseMatrix(t *testing.T) {
 			publicConfig := httptest.NewRecorder()
 			router.ServeHTTP(publicConfig, httptest.NewRequest(http.MethodGet, "/config", nil))
 			assert.NotContains(t, publicConfig.Body.String(), "test-token")
+			foreignStatus := httptest.NewRecorder()
+			router.ServeHTTP(foreignStatus, httptest.NewRequest(http.MethodGet, "/status/afd_checkout1", nil))
+			assert.Contains(t, foreignStatus.Body.String(), `"success":false`)
+			previousOptions := common.OptionMap
+			common.OptionMap = make(map[string]string)
+			t.Cleanup(func() { common.OptionMap = previousOptions })
+			config.APIToken = ""
+			updateBody, err := common.Marshal(config)
+			require.NoError(t, err)
+			update := httptest.NewRecorder()
+			router.ServeHTTP(update, httptest.NewRequest(http.MethodPut, "/config", bytes.NewReader(updateBody)))
+			assert.Contains(t, update.Body.String(), `"success":true`)
+			assert.NotContains(t, update.Body.String(), "test-token")
+			assert.Equal(t, "test-token", setting.GetAfdianConfig().APIToken)
 		})
 	}
 }

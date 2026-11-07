@@ -74,6 +74,7 @@ export function AfdianSettingsSection() {
   const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: ['afdian-settings'],
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<AfdianConfigResponse> => {
       const response = await api.get('/api/option/afdian')
       return requireServerSuccess(response.data).data
@@ -107,6 +108,11 @@ export function AfdianSettingsSection() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['afdian-settings'], data)
+      form.reset({
+        ...data.config,
+        api_token: '',
+        products: JSON.stringify(data.config.products, null, 2),
+      })
       toast.success(t('Settings updated successfully'))
     },
   })
