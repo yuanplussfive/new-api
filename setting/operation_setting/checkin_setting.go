@@ -1,37 +1,92 @@
 package operation_setting
 
-import "github.com/QuantumNous/new-api/setting/config"
+import (
+	"strings"
+	"unicode/utf8"
 
-// CheckinSetting 签到功能配置
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/shopspring/decimal"
+)
+
+type CheckinReward struct {
+	Name   string `json:"name"`
+	Quota  int    `json:"quota"`
+	Weight int64  `json:"weight"`
+}
+
 type CheckinSetting struct {
-	Enabled  bool `json:"enabled"`   // 是否启用签到功能
-	MinQuota int  `json:"min_quota"` // 签到最小额度奖励
-	MaxQuota int  `json:"max_quota"` // 签到最大额度奖励
+	Enabled bool `json:"enabled"`
+	// Retain legacy options for upgrades; rewards now require an explicit group pool.
+	MinQuota     int                        `json:"min_quota"`
+	MaxQuota     int                        `json:"max_quota"`
+	GroupRewards map[string][]CheckinReward `json:"group_rewards"`
 }
 
-// 默认配置
-var checkinSetting = CheckinSetting{
-	Enabled:  false, // 默认关闭
-	MinQuota: 1000,  // 默认最小额度 1000 (约 0.002 USD)
-	MaxQuota: 10000, // 默认最大额度 10000 (约 0.02 USD)
-}
+var checkinSetting = CheckinSetting{MinQuota: 1000, MaxQuota: 10000, GroupRewards: map[string][]CheckinReward{}}
 
 func init() {
-	// 注册到全局配置管理器
 	config.GlobalConfig.Register("checkin_setting", &checkinSetting)
 }
 
-// GetCheckinSetting 获取签到配置
+// Option updates hold OptionMapRWMutex. Copy maps and slices so a draw uses a
+// consistent pool even when an administrator replaces the configuration.
 func GetCheckinSetting() *CheckinSetting {
-	return &checkinSetting
+	common.OptionMapRWMutex.RLock()
+	defer common.OptionMapRWMutex.RUnlock()
+	snapshot := checkinSetting
+	snapshot.GroupRewards = make(map[string][]CheckinReward, len(checkinSetting.GroupRewards))
+	for group, rewards := range checkinSetting.GroupRewards {
+		snapshot.GroupRewards[group] = append([]CheckinReward{}, rewards...)
+	}
+	return &snapshot
 }
 
-// IsCheckinEnabled 是否启用签到功能
-func IsCheckinEnabled() bool {
-	return checkinSetting.Enabled
-}
+func IsCheckinEnabled() bool { return GetCheckinSetting().Enabled }
 
-// GetCheckinQuotaRange 获取签到额度范围
 func GetCheckinQuotaRange() (min, max int) {
-	return checkinSetting.MinQuota, checkinSetting.MaxQuota
+	settings := GetCheckinSetting()
+	return settings.MinQuota, settings.MaxQuota
+}
+
+func ValidateCheckinGroupRewards(value string) error {
+	var groups map[string][]CheckinReward
+	if err := common.UnmarshalJsonStr(value, &groups); err != nil || len(groups) > 100 {
+		return common.NewMessage("Invalid check-in reward configuration")
+	}
+	for group, rewards := range groups {
+		if strings.TrimSpace(group) != group || group == "" || len(group) > 64 || len(rewards) == 0 || len(rewards) > 12 {
+			return common.NewMessage("Invalid check-in reward configuration")
+		}
+		var total int64
+		for _, reward := range rewards {
+			if strings.TrimSpace(reward.Name) == "" || utf8.RuneCountInString(reward.Name) > 50 || reward.Weight <= 0 || reward.Weight > 1000000 {
+				return common.NewMessage("Invalid check-in reward configuration")
+			}
+			if _, err := common.WalletQuotaFromDecimalStrict(decimal.NewFromInt(int64(reward.Quota))); err != nil || reward.Quota < 0 {
+				return common.NewMessage("Invalid check-in reward configuration")
+			}
+			total += reward.Weight
+		}
+		if total > 1000000 {
+			return common.NewMessage("Invalid check-in reward configuration")
+		}
+	}
+	return nil
+}
+
+// CheckinRewardAt maps a uniformly sampled ticket to its weighted reward tier.
+func CheckinRewardAt(rewards []CheckinReward, ticket int64) (int, error) {
+	if ticket >= 0 {
+		for index, reward := range rewards {
+			if reward.Weight <= 0 {
+				break
+			}
+			if ticket < reward.Weight {
+				return index, nil
+			}
+			ticket -= reward.Weight
+		}
+	}
+	return 0, common.NewMessage("Invalid check-in reward configuration")
 }

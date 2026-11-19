@@ -17,11 +17,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, type Resolver } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import { z } from 'zod'
 
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -31,8 +32,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { getGroups } from '@/features/users/api'
+import { requireServerSuccess } from '@/lib/server-error-message'
 
 import {
   SettingsForm,
@@ -42,83 +44,110 @@ import {
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
+import { CheckinPoolEditor } from './checkin-pool-editor'
 
-const schema = z.object({
-  enabled: z.boolean(),
-  minQuota: z.coerce.number().int().min(0),
-  maxQuota: z.coerce.number().int().min(0),
+const validationMessage = 'Invalid check-in reward configuration'
+const rewardSchema = z.object({
+  name: z.string().trim().min(1, validationMessage).max(50, validationMessage),
+  quota: z
+    .number({ error: validationMessage })
+    .int(validationMessage)
+    .min(0, validationMessage)
+    .max(Number.MAX_SAFE_INTEGER, validationMessage),
+  weight: z
+    .number({ error: validationMessage })
+    .int(validationMessage)
+    .min(1, validationMessage)
+    .max(1000000, validationMessage),
 })
+const poolSchema = z.object({
+  group: z.string().trim().min(1, validationMessage).max(64, validationMessage),
+  rewards: z
+    .array(rewardSchema)
+    .min(1, validationMessage)
+    .max(12, validationMessage),
+})
+const schema = z
+  .object({ enabled: z.boolean(), pools: z.array(poolSchema).max(100) })
+  .refine(
+    (value) =>
+      new Set(value.pools.map((pool) => pool.group)).size ===
+        value.pools.length &&
+      value.pools.every(
+        (pool) =>
+          pool.rewards.reduce((sum, reward) => sum + reward.weight, 0) <=
+          1000000
+      ),
+    { message: 'Invalid check-in reward configuration', path: ['pools'] }
+  )
+export type CheckinSettingsValues = z.infer<typeof schema>
 
-type Values = z.infer<typeof schema>
-
-export function CheckinSettingsSection({
-  defaultValues,
-}: {
-  defaultValues: {
-    enabled: boolean
-    minQuota: number
-    maxQuota: number
-  }
+export function CheckinSettingsSection(props: {
+  defaultValues: { enabled: boolean; groupRewards: string }
 }) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
-
-  const form = useForm<Values>({
-    resolver: zodResolver(schema) as unknown as Resolver<Values>,
-    defaultValues: {
-      enabled: defaultValues.enabled,
-      minQuota: defaultValues.minQuota,
-      maxQuota: defaultValues.maxQuota,
-    },
+  const { data: groupsData } = useQuery({
+    queryKey: ['groups'],
+    queryFn: async () => requireServerSuccess(await getGroups()),
+    staleTime: 300000,
   })
-
-  const { isDirty, isSubmitting } = form.formState
-  const enabled = form.watch('enabled')
-
-  async function onSubmit(values: Values) {
-    const updates: Array<{ key: string; value: string }> = []
-
-    if (values.enabled !== defaultValues.enabled) {
-      updates.push({
-        key: 'checkin_setting.enabled',
-        value: String(values.enabled),
-      })
-    }
-
-    if (values.minQuota !== defaultValues.minQuota) {
-      updates.push({
-        key: 'checkin_setting.min_quota',
-        value: String(values.minQuota),
-      })
-    }
-
-    if (values.maxQuota !== defaultValues.maxQuota) {
-      updates.push({
-        key: 'checkin_setting.max_quota',
-        value: String(values.maxQuota),
-      })
-    }
-
-    if (updates.length === 0) {
-      toast.info(t('No changes to save'))
-      return
-    }
-
-    for (const update of updates) {
-      await updateOption.mutateAsync(update)
-    }
-
-    form.reset(values)
+  let pools: CheckinSettingsValues['pools'] = []
+  try {
+    const stored = z
+      .record(z.string(), z.array(rewardSchema))
+      .parse(JSON.parse(props.defaultValues.groupRewards))
+    pools = Object.entries(stored).map(([group, rewards]) => ({
+      group,
+      rewards,
+    }))
+  } catch {
+    // Empty legacy settings require explicit group configuration.
   }
-
+  const form = useForm<CheckinSettingsValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { enabled: props.defaultValues.enabled, pools },
+  })
+  const busy = updateOption.isPending || form.formState.isSubmitting
+  async function onSubmit(values: CheckinSettingsValues) {
+    const groupRewards = Object.fromEntries(
+      values.pools.map((pool) => [pool.group, pool.rewards])
+    )
+    // Disable first when requested; enable only after replacing every group's pool.
+    try {
+      if (!values.enabled) {
+        await updateOption.mutateAsync({
+          key: 'checkin_setting.enabled',
+          value: 'false',
+        })
+      }
+      await updateOption.mutateAsync({
+        key: 'checkin_setting.group_rewards',
+        value: JSON.stringify(groupRewards),
+      })
+      if (values.enabled) {
+        await updateOption.mutateAsync({
+          key: 'checkin_setting.enabled',
+          value: 'true',
+        })
+      }
+      form.reset(values)
+    } catch {
+      // useUpdateOption displays the error; keep the draft for a retry.
+    }
+  }
   return (
     <SettingsSection title={t('Check-in Settings')}>
       <Form {...form}>
-        <SettingsForm onSubmit={form.handleSubmit(onSubmit)} autoComplete='off'>
+        <SettingsForm
+          onSubmit={form.handleSubmit(onSubmit)}
+          autoComplete='off'
+          noValidate
+        >
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
-            isSaving={updateOption.isPending || isSubmitting}
-            isSaveDisabled={!isDirty}
+            isSaving={busy}
+            isSaveDisabled={!form.formState.isDirty}
             saveLabel='Save check-in settings'
           />
           <FormField
@@ -130,7 +159,7 @@ export function CheckinSettingsSection({
                   <FormLabel>{t('Enable check-in feature')}</FormLabel>
                   <FormDescription>
                     {t(
-                      'Allow users to check in daily for random quota rewards'
+                      'Only configured user groups can check in. Each group has its own reward pool.'
                     )}
                   </FormDescription>
                 </SettingsSwitchContent>
@@ -138,60 +167,34 @@ export function CheckinSettingsSection({
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    disabled={updateOption.isPending || isSubmitting}
+                    disabled={busy}
                   />
                 </FormControl>
               </SettingsSwitchItem>
             )}
           />
-
-          {enabled && (
-            <div className='grid gap-6 sm:grid-cols-2'>
-              <FormField
-                control={form.control}
-                name='minQuota'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Minimum check-in quota')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        placeholder={t('1000')}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('Minimum quota amount awarded for check-in')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='maxQuota'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Maximum check-in quota')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        placeholder={t('10000')}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('Maximum quota amount awarded for check-in')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          )}
+          <FormField
+            control={form.control}
+            name='pools'
+            render={() => (
+              <FormItem data-settings-form-span='full'>
+                <p className='text-sm font-medium'>{t('Group reward pools')}</p>
+                <CheckinPoolEditor
+                  groups={groupsData?.data ?? []}
+                  disabled={busy}
+                />
+                <FormDescription>
+                  {t(
+                    'Probability equals tier weight divided by total weight. Removing a group disables its check-in access.'
+                  )}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type='submit' disabled={busy || !form.formState.isDirty}>
+            {t('Save check-in settings')}
+          </Button>
         </SettingsForm>
       </Form>
     </SettingsSection>

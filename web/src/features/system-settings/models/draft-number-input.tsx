@@ -21,7 +21,7 @@ import {
   useState,
   type ChangeEvent,
   type FocusEvent,
-  type InputHTMLAttributes,
+  type ComponentProps,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
 
@@ -46,7 +46,7 @@ function isZeroDraft(value: string): boolean {
 }
 
 type DraftNumberInputProps = Omit<
-  InputHTMLAttributes<HTMLInputElement>,
+  ComponentProps<'input'>,
   'type' | 'value' | 'onChange'
 > & {
   value: number | string

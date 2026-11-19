@@ -49,6 +49,8 @@ const STATUS_RELATED_KEYS = new Set([
   'passkey.origins',
   'QuotaRemindEnabled',
   'QuotaRemindThreshold',
+  'checkin_setting.enabled',
+  'checkin_setting.group_rewards',
 ])
 
 export function useUpdateOption() {
@@ -61,6 +63,10 @@ export function useUpdateOption() {
       if (data.success) {
         // Always refresh system-options
         queryClient.invalidateQueries({ queryKey: ['system-options'] })
+
+        if (variables.key.startsWith('checkin_setting.')) {
+          queryClient.invalidateQueries({ queryKey: ['checkin-status'] })
+        }
 
         // If updating frontend-display-related config, also refresh status
         if (STATUS_RELATED_KEYS.has(variables.key)) {

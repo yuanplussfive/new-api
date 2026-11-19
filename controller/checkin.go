@@ -22,6 +22,19 @@ func GetCheckinStatus(c *gin.Context) {
 	// 获取月份参数，默认为当前月份
 	month := c.DefaultQuery("month", time.Now().Format("2006-01"))
 
+	if parsed, err := time.Parse("2006-01", month); err != nil || parsed.Format("2006-01") != month {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	user, err := model.GetUserById(userId, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	rewards := setting.GroupRewards[user.Group]
+	if rewards == nil {
+		rewards = []operation_setting.CheckinReward{}
+	}
 	stats, err := model.GetUserCheckinStats(userId, month)
 	if err != nil {
 		common.ApiError(c, err)
@@ -31,10 +44,12 @@ func GetCheckinStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"enabled":   setting.Enabled,
-			"min_quota": setting.MinQuota,
-			"max_quota": setting.MaxQuota,
-			"stats":     stats,
+			"today":        time.Now().Format("2006-01-02"),
+			"enabled":      setting.Enabled,
+			"eligible":     len(rewards) > 0 && user.Status == common.UserStatusEnabled,
+			"group":        user.Group,
+			"reward_tiers": rewards,
+			"stats":        stats,
 		},
 	})
 }
@@ -56,7 +71,9 @@ func DoCheckin(c *gin.Context) {
 	}
 	model.RecordLog(userId, model.LogTypeSystem, common.NewMessage("Daily check-in, received {{quota}}", map[string]any{"quota": logger.FormatQuota(checkin.QuotaAwarded)}))
 	common.ApiSuccessT(c, "Check-in successful", gin.H{
-		"quota_awarded": checkin.QuotaAwarded,
-		"checkin_date":  checkin.CheckinDate,
+		"quota_awarded":     checkin.QuotaAwarded,
+		"checkin_date":      checkin.CheckinDate,
+		"reward_tier_index": checkin.RewardTierIndex,
+		"reward_tiers":      checkin.RewardTiers,
 	})
 }

@@ -25,11 +25,12 @@ import {
   ChevronUp,
   Sparkles,
 } from 'lucide-react'
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import { ErrorState } from '@/components/error-state'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -48,18 +49,21 @@ import { createServerError } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 
 import { getCheckinStatus, performCheckin } from '../api'
-import type { CheckinRecord } from '../types'
+import type { CheckinRecord, CheckinResponse } from '../types'
+import { CheckinSlotMachine } from './checkin-slot-machine'
 
 interface CheckinCalendarCardProps {
   checkinEnabled: boolean
   turnstileEnabled: boolean
   turnstileSiteKey: string
+  onCheckin?: () => void
 }
 
 export function CheckinCalendarCard({
   checkinEnabled,
   turnstileEnabled,
   turnstileSiteKey,
+  onCheckin,
 }: CheckinCalendarCardProps) {
   const { t } = useTranslation()
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -67,6 +71,9 @@ export function CheckinCalendarCard({
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const [checkinLoading, setCheckinLoading] = useState(false)
+  const [drawAnimating, setDrawAnimating] = useState(false)
+  const checking = useRef(false)
+  const [drawResult, setDrawResult] = useState<CheckinResponse | null>(null)
   const [turnstileModalVisible, setTurnstileModalVisible] = useState(false)
   const [turnstileWidgetKey, setTurnstileWidgetKey] = useState(0)
   const [initialLoaded, setInitialLoaded] = useState(false)
@@ -83,6 +90,7 @@ export function CheckinCalendarCard({
   const {
     data: checkinData,
     isLoading,
+    isError,
     refetch,
   } = useQuery({
     queryKey: ['checkin-status', currentMonthStr],
@@ -95,6 +103,7 @@ export function CheckinCalendarCard({
     },
     enabled: checkinEnabled,
     staleTime: 30000,
+    refetchInterval: 60000,
   })
   /* eslint-enable @tanstack/query/exhaustive-deps */
 
@@ -115,13 +124,15 @@ export function CheckinCalendarCard({
     )
   }, [checkinData?.stats?.records])
 
-  const todayString = useMemo(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }, [])
-
-  const checkedToday = checkinData?.stats?.checked_in_today === true
-  const todayAward = checkinRecordsMap[todayString]
+  const todayString = checkinData?.today ?? dayjs().format('YYYY-MM-DD')
+  const checkedToday =
+    checkinData?.stats?.checked_in_today === true ||
+    (drawResult !== null && drawResult.checkin_date === todayString)
+  const todayAward =
+    drawResult?.checkin_date === todayString
+      ? drawResult.quota_awarded
+      : checkinRecordsMap[todayString]
+  const eligible = checkinData?.eligible === true
 
   useEffect(() => {
     if (initialLoaded) return
@@ -142,13 +153,16 @@ export function CheckinCalendarCard({
 
   const doCheckin = useCallback(
     async (token?: string) => {
+      if (checking.current || !eligible || checkedToday) return
+      checking.current = true
+      setDrawResult(null)
       setCheckinLoading(true)
       try {
         const res = await performCheckin(token)
         if (res.success && res.data) {
-          toast.success(
-            `${t('Check-in successful! Received')} ${formatQuotaWithCurrency(res.data.quota_awarded)}`
-          )
+          setDrawResult(res.data)
+          setDrawAnimating(true)
+          onCheckin?.()
           refetch()
           setTurnstileModalVisible(false)
         } else {
@@ -168,10 +182,19 @@ export function CheckinCalendarCard({
       } catch (error) {
         handleServerError(error, t('Check-in failed'))
       } finally {
+        checking.current = false
         setCheckinLoading(false)
       }
     },
-    [refetch, shouldTriggerTurnstile, t, turnstileSiteKey]
+    [
+      refetch,
+      shouldTriggerTurnstile,
+      t,
+      turnstileSiteKey,
+      eligible,
+      checkedToday,
+      onCheckin,
+    ]
   )
 
   const handlePrevMonth = () => {
@@ -244,11 +267,24 @@ export function CheckinCalendarCard({
     )
   }
 
-  let checkinButtonLabel = t('Check in now')
-  if (checkinLoading) {
+  if (isError && !checkinData) {
+    return (
+      <Card>
+        <ErrorState
+          title={t('Failed to fetch checkin status')}
+          onRetry={() => void refetch()}
+        />
+      </Card>
+    )
+  }
+
+  let checkinButtonLabel = t('Spin and check in')
+  if (checkinLoading || drawAnimating) {
     checkinButtonLabel = t('Loading...')
   } else if (checkedToday) {
     checkinButtonLabel = t('Checked in')
+  } else if (!eligible) {
+    checkinButtonLabel = t('Check-in unavailable')
   }
 
   return (
@@ -287,9 +323,11 @@ export function CheckinCalendarCard({
         {/* Header */}
         <div className='border-b p-4 sm:p-6'>
           <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4'>
-            <button
+            <Button
               type='button'
-              className='flex min-w-0 flex-1 items-start gap-3 rounded-lg text-left whitespace-normal outline-none'
+              variant='ghost'
+              aria-expanded={!collapsed}
+              className='flex h-auto min-w-0 flex-1 items-start justify-start gap-3 p-0 text-left whitespace-normal'
               onClick={() => setCollapsed((v) => !v)}
             >
               <IconBadge tone='neutral' size='lg' className='sm:size-11'>
@@ -323,10 +361,16 @@ export function CheckinCalendarCard({
                     : t('Check in daily to receive random quota rewards')}
                 </p>
               </div>
-            </button>
+            </Button>
             <Button
               onClick={() => doCheckin()}
-              disabled={checkinLoading || checkedToday}
+              disabled={
+                checkinLoading ||
+                drawAnimating ||
+                checkedToday ||
+                !eligible ||
+                isLoading
+              }
               size='sm'
               className='w-full shrink-0 sm:w-auto'
             >
@@ -335,6 +379,33 @@ export function CheckinCalendarCard({
           </div>
         </div>
 
+        {!eligible && checkinData && (
+          <p
+            role='status'
+            className='text-muted-foreground border-b p-4 text-sm'
+          >
+            {t('Check-in is not available for your user group')}
+          </p>
+        )}
+        {eligible && (
+          <CheckinSlotMachine
+            rewards={checkinData?.reward_tiers ?? []}
+            pending={checkinLoading}
+            revealing={drawAnimating}
+            checkedIn={checkedToday}
+            result={
+              drawResult?.checkin_date === todayString ? drawResult : null
+            }
+            onReveal={() => {
+              setDrawAnimating(false)
+                if (drawResult) {
+                toast.success(
+                  `${t('Check-in successful! Received')} ${formatQuotaWithCurrency(drawResult.quota_awarded)}`
+                )
+                }
+            }}
+          />
+        )}
         {!collapsed ? (
           <>
             {/* Stats */}

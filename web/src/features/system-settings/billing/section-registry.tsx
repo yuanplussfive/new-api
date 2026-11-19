@@ -196,8 +196,7 @@ const BILLING_SECTIONS = [
       <CheckinSettingsSection
         defaultValues={{
           enabled: settings['checkin_setting.enabled'],
-          minQuota: settings['checkin_setting.min_quota'],
-          maxQuota: settings['checkin_setting.max_quota'],
+          groupRewards: settings['checkin_setting.group_rewards'],
         }}
       />
     ),

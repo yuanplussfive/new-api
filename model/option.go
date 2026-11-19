@@ -234,6 +234,9 @@ func SyncOptions(frequency int) {
 }
 
 func validateOptionValue(key string, value string) error {
+	if key == "checkin_setting.group_rewards" {
+		return operation_setting.ValidateCheckinGroupRewards(value)
+	}
 	if key == setting.AfdianOptionKey {
 		var config setting.AfdianConfig
 		if err := common.UnmarshalJsonStr(value, &config); err != nil {

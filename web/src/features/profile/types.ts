@@ -225,7 +225,17 @@ export interface CheckinStats {
 /**
  * Check-in status response
  */
+export interface CheckinReward {
+  name: string
+  quota: number
+  weight: number
+}
+
 export interface CheckinStatusResponse {
+  today: string
+  eligible: boolean
+  group: string
+  reward_tiers: CheckinReward[]
   /** Whether check-in feature is enabled */
   enabled: boolean
   /** Check-in statistics */
@@ -236,6 +246,9 @@ export interface CheckinStatusResponse {
  * Check-in action response
  */
 export interface CheckinResponse {
+  checkin_date: string
+  reward_tier_index: number
+  reward_tiers: CheckinReward[]
   /** Quota awarded for this check-in */
   quota_awarded: number
 }
