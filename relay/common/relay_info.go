@@ -117,6 +117,7 @@ type RelayInfo struct {
 	IsFirstRequest     bool
 	AudioUsage         bool
 	ReasoningEffort    string
+	Timing             *RequestTimingRecorder
 	// ReasoningConversion is the suffix-derived reasoning intent attached
 	// after model mapping. Converters read it via ReasoningState().
 	ReasoningConversion *dto.ReasoningConversionState
@@ -267,6 +268,9 @@ func (info *RelayInfo) RequestedImageCount() int {
 
 func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	info.ResponseModel = nil
+	info.Timing = nil
+	info.isFirstResponse = true
+	info.FirstResponseTime = info.StartTime.Add(-time.Second)
 	info.FinalRequestRelayFormat = ""
 	info.RequestConversionChain = nil
 	info.InitRequestConversionChain()
@@ -656,8 +660,7 @@ func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 
 	if strings.HasPrefix(c.Request.URL.Path, "/pg") {
 		info.IsPlayground = true
-		info.RequestURLPath = strings.TrimPrefix(info.RequestURLPath, "/pg")
-		info.RequestURLPath = "/v1" + info.RequestURLPath
+		info.RequestURLPath = playgroundRelayPath(info.RequestURLPath)
 	}
 
 	userSetting, ok := common.GetContextKeyType[dto.UserSetting](c, constant.ContextKeyUserSetting)
@@ -997,6 +1000,31 @@ func (info *RelayInfo) ConvOptions() *convmeta.Options {
 	return options
 }
 
+// BeginStreamTiming starts a fresh attempt, anchored to the request start so
+// selection/retry delays remain waiting time rather than generated output.
+func (info *RelayInfo) BeginStreamTiming() {
+	if info == nil || !info.IsStream {
+		return
+	}
+	start := info.StartTime
+	if start.IsZero() {
+		start = time.Now()
+	}
+	info.Timing = NewRequestTimingRecorder(start)
+}
+
+func (info *RelayInfo) ObserveStreamChunk(data string) {
+	if info != nil {
+		info.Timing.ObserveChunk(data)
+	}
+}
+
+func (info *RelayInfo) FinishStreamTiming() {
+	if info != nil {
+		info.Timing.Finalize(time.Now())
+	}
+}
+
 func (info *RelayInfo) SetFirstResponseTime() {
 	if info.isFirstResponse {
 		info.FirstResponseTime = time.Now()
@@ -1306,4 +1334,14 @@ func RemoveGeminiDisabledFields(jsonData []byte) ([]byte, error) {
 		}
 	}
 	return doc.Bytes(), nil
+}
+
+// playgroundRelayPath maps a playground entry point onto the equivalent public
+// relay path so upstream conversion and logging keep working unchanged.
+func playgroundRelayPath(path string) string {
+	trimmedPath := strings.TrimPrefix(path, "/pg")
+	if strings.HasPrefix(trimmedPath, "/v1beta") {
+		return trimmedPath
+	}
+	return "/v1" + trimmedPath
 }

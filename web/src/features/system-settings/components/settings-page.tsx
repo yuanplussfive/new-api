@@ -67,7 +67,7 @@ function SettingsPageFrame(props: SettingsPageFrameProps) {
       actionsContainer={actionsContainer}
       titleStatusContainer={titleStatusContainer}
     >
-      <SectionPageLayout>
+      <SectionPageLayout variant='settings'>
         <SectionPageLayout.Title>
           <span className='inline-flex max-w-full min-w-0 items-center gap-2 align-middle'>
             <span className='truncate'>{props.title}</span>
@@ -84,7 +84,7 @@ function SettingsPageFrame(props: SettingsPageFrameProps) {
           />
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
-          <div className='flex h-full min-h-0 w-full flex-col gap-4'>
+          <div className='workspace-settings-content flex min-h-full w-full flex-col gap-6'>
             {props.children}
           </div>
         </SectionPageLayout.Content>

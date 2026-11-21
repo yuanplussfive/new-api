@@ -21,7 +21,6 @@ import { Gauge, HeartPulse, Timer } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getPerfMetricsSummary } from '@/features/performance-metrics/api'
 import {
@@ -61,19 +60,21 @@ export function PerformanceHealthPanel() {
   const hasData = models.length > 0
 
   return (
-    <section className='bg-card h-full overflow-hidden rounded-2xl border shadow-xs'>
-      <div className='flex items-center gap-2 border-b px-4 py-3 sm:px-5'>
-        <IconBadge tone='success' size='sm'>
-          <HeartPulse />
-        </IconBadge>
-        <h3 className='text-sm font-semibold'>{t('Performance health')}</h3>
-        <span className='text-muted-foreground ml-auto text-xs'>
+    <section
+      data-dashboard-panel=''
+      className='bg-card h-full overflow-hidden rounded-xl border border-line'
+    >
+      <div className='flex items-center gap-2 border-b border-line-subtle px-4 py-3 sm:px-5'>
+        <h3 className='text-content-strong text-[12.5px] font-semibold'>
+          {t('Performance health')}
+        </h3>
+        <span className='text-content-muted ml-auto text-[11.5px]'>
           {t('Performance metrics for the last 24 hours')}
         </span>
       </div>
 
-      <div className='space-y-3 p-4 sm:p-5'>
-        <div className='grid grid-cols-3 gap-2'>
+      <div className='p-4 sm:p-5'>
+        <div className='grid grid-cols-3 divide-x divide-line-subtle'>
           <MetricCell
             icon={HeartPulse}
             label={t('Success rate')}
@@ -82,46 +83,43 @@ export function PerformanceHealthPanel() {
             valueClassName={getSuccessRateTextClass(
               summary?.success_rate ?? Number.NaN
             )}
-            tone='success'
           />
           <MetricCell
             icon={Timer}
             label={t('Average latency')}
             value={formatLatency(summary?.avg_latency_ms ?? 0)}
             loading={loading}
-            tone='warning'
           />
           <MetricCell
             icon={Gauge}
             label={t('Throughput')}
             value={formatThroughput(summary?.avg_tps ?? 0)}
             loading={loading}
-            tone='info'
           />
         </div>
 
         {loading ? (
-          <div className='space-y-1'>
+          <div className='mt-4 space-y-1 border-t border-line-subtle pt-3'>
             {['success', 'latency', 'throughput'].map((key) => (
               <Skeleton key={key} className='h-5 w-full rounded' />
             ))}
           </div>
         ) : (
           hasData && (
-            <div>
-              <span className='text-muted-foreground mb-1 block text-[11px] font-medium'>
+            <div className='mt-4 border-t border-line-subtle pt-3'>
+              <span className='text-content-muted mb-1.5 block text-[11px] font-medium'>
                 {t('Top models by traffic')}
               </span>
-              <div className='grid grid-cols-1 gap-x-4 sm:grid-cols-2'>
+              <div className='grid grid-cols-1 gap-x-6 sm:grid-cols-2'>
                 {topModels.map((model) => (
                   <div
                     key={model.model_name}
-                    className='flex items-center justify-between gap-2 rounded px-1.5 py-1'
+                    className='flex items-center justify-between gap-2 border-b border-line-subtle py-1.5 last:border-b-0'
                   >
-                    <span className='min-w-0 flex-1 truncate font-mono text-[11px]'>
+                    <span className='text-content-secondary min-w-0 flex-1 truncate font-mono text-[11px]'>
                       {model.model_name}
                     </span>
-                    <span className='inline-flex shrink-0 items-center gap-1'>
+                    <span className='inline-flex shrink-0 items-center gap-1.5'>
                       <span
                         className={cn(
                           'size-1.5 rounded-full',
@@ -131,7 +129,7 @@ export function PerformanceHealthPanel() {
                       />
                       <span
                         className={cn(
-                          'font-mono text-[11px] font-semibold tabular-nums',
+                          'text-[11px] font-semibold tabular-nums',
                           getSuccessRateTextClass(model.success_rate)
                         )}
                       >
@@ -155,15 +153,12 @@ function MetricCell(props: {
   value: string
   loading: boolean
   valueClassName?: string
-  tone: IconBadgeTone
 }) {
   const Icon = props.icon
   return (
-    <div className='bg-muted/40 rounded-xl px-3 py-2.5'>
-      <div className='text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium'>
-        <IconBadge tone={props.tone} size='xs'>
-          <Icon />
-        </IconBadge>
+    <div className='px-4 first:pl-0 last:pr-0'>
+      <div className='text-content-muted flex items-center gap-1.5 text-[11px] font-medium'>
+        <Icon className='size-3.5 shrink-0' aria-hidden='true' />
         <span className='truncate'>{props.label}</span>
       </div>
       {props.loading ? (
@@ -171,7 +166,7 @@ function MetricCell(props: {
       ) : (
         <div
           className={cn(
-            'mt-1.5 font-mono text-sm font-semibold tabular-nums',
+            'text-content-strong mt-1.5 text-[15px] font-semibold tabular-nums',
             props.valueClassName
           )}
         >

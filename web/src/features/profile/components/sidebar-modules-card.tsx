@@ -16,20 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { LayoutDashboard } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { IconBadge } from '@/components/ui/icon-badge'
 import { Switch } from '@/components/ui/switch'
 import { parseSidebarModulesAdmin } from '@/features/system-settings/maintenance/config'
 import { useStatus } from '@/hooks/use-status'
@@ -56,6 +48,8 @@ export function SidebarModulesCard() {
   const { status } = useStatus()
   const [loading, setLoading] = useState(false)
   const [config, setConfig] = useState<SidebarModulesConfig>({})
+  const [expanded, setExpanded] = useState<string[]>([])
+  const contentId = useId()
   const currentUser = useAuthStore((s) => s.auth.user)
   const setUser = useAuthStore((s) => s.auth.setUser)
 
@@ -67,7 +61,7 @@ export function SidebarModulesCard() {
       modules: [
         {
           key: 'playground',
-          title: t('Playground'),
+          title: t('Chat plaza'),
           description: t('AI model testing environment'),
         },
         {
@@ -173,6 +167,14 @@ export function SidebarModulesCard() {
     loadConfig()
   }, [loadConfig])
 
+  const toggleExpanded = (sectionKey: string) => {
+    setExpanded((prev) =>
+      prev.includes(sectionKey)
+        ? prev.filter((key) => key !== sectionKey)
+        : [...prev, sectionKey]
+    )
+  }
+
   const toggleSection = (sectionKey: string, val: boolean) => {
     setConfig((prev) => ({
       ...prev,
@@ -228,73 +230,93 @@ export function SidebarModulesCard() {
   if (!status) return null
 
   return (
-    <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
-      <CardHeader className='border-b p-3 !pb-3 sm:p-5 sm:!pb-5'>
-        <div className='flex items-center gap-3'>
-          <IconBadge tone='info' size='title'>
-            <LayoutDashboard />
-          </IconBadge>
-          <div className='min-w-0'>
-            <CardTitle className='text-lg tracking-tight sm:text-xl'>
-              {t('Sidebar Personal Settings')}
-            </CardTitle>
-            <CardDescription className='text-xs sm:text-sm'>
-              {t('Customize sidebar display content')}
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className='space-y-4 p-3 sm:space-y-5 sm:p-5'>
+    <section
+      className='profile-aside-section'
+      aria-labelledby='profile-sidebar-title'
+    >
+      <h2 id='profile-sidebar-title' className='profile-aside-title'>
+        {t('Sidebar Personal Settings')}
+      </h2>
+      <p className='profile-aside-description'>
+        {t('Customize sidebar display content')}
+      </p>
+      <div className='profile-sidebar-sections'>
         {visibleSectionDefs.map((section) => {
           const sectionEnabled = config[section.key]?.enabled !== false
+          const sectionContentId = `${contentId}-${section.key}`
+          const isExpanded = expanded.includes(section.key)
           return (
-            <div
-              key={section.key}
-              className='bg-background/60 rounded-xl border p-3'
-            >
-              <div className='flex items-start justify-between gap-3'>
-                <div className='min-w-0'>
-                  <p className='text-sm font-medium'>{section.title}</p>
-                  <p className='text-muted-foreground text-xs'>
-                    {section.description}
-                  </p>
-                </div>
+            <div key={section.key} className='profile-sidebar-section'>
+              <div className='profile-sidebar-section-row'>
+                <button
+                  type='button'
+                  aria-expanded={isExpanded}
+                  aria-controls={sectionContentId}
+                  className='profile-sidebar-expand'
+                  onClick={() => toggleExpanded(section.key)}
+                >
+                  <ChevronRight aria-hidden='true' />
+                  <span className='profile-sidebar-section-copy'>
+                    <span className='profile-sidebar-section-name'>
+                      {section.title}
+                    </span>
+                    <span className='profile-sidebar-section-description'>
+                      {section.description}
+                    </span>
+                  </span>
+                  <span className='profile-sidebar-count'>
+                    {
+                      section.modules.filter(
+                        (mod) => config[section.key]?.[mod.key] !== false
+                      ).length
+                    }
+                    /{section.modules.length}
+                  </span>
+                </button>
                 <Switch
+                  aria-label={section.title}
                   checked={sectionEnabled}
-                  onCheckedChange={(v) => toggleSection(section.key, v)}
+                  onCheckedChange={(value) => toggleSection(section.key, value)}
                 />
               </div>
-              <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1'>
-                {section.modules.map((mod) => (
-                  <div
-                    key={mod.key}
-                    className={`flex min-h-16 items-center justify-between rounded-lg border p-3 ${
-                      sectionEnabled ? '' : 'opacity-50'
-                    }`}
-                  >
-                    <div className='mr-2 min-w-0'>
-                      <p className='truncate text-sm font-medium'>
-                        {mod.title}
-                      </p>
-                      <p className='text-muted-foreground truncate text-xs'>
-                        {mod.description}
-                      </p>
+              {isExpanded && (
+                <div
+                  id={sectionContentId}
+                  className='profile-sidebar-modules'
+                  aria-label={section.title}
+                >
+                  {section.modules.map((mod) => (
+                    <div
+                      key={mod.key}
+                      className='profile-sidebar-module'
+                      data-disabled={!sectionEnabled}
+                    >
+                      <div>
+                        <p className='profile-sidebar-module-name'>
+                          {mod.title}
+                        </p>
+                        <p className='profile-sidebar-module-description'>
+                          {mod.description}
+                        </p>
+                      </div>
+                      <Switch
+                        size='sm'
+                        aria-label={mod.title}
+                        checked={config[section.key]?.[mod.key] !== false}
+                        onCheckedChange={(value) =>
+                          toggleModule(section.key, mod.key, value)
+                        }
+                        disabled={!sectionEnabled}
+                      />
                     </div>
-                    <Switch
-                      checked={config[section.key]?.[mod.key] !== false}
-                      onCheckedChange={(v) =>
-                        toggleModule(section.key, mod.key, v)
-                      }
-                      disabled={!sectionEnabled}
-                    />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}
 
-        <div className='flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end'>
+        <div className='profile-sidebar-actions'>
           <Button variant='outline' onClick={handleReset}>
             {t('Reset to Default')}
           </Button>
@@ -302,7 +324,7 @@ export function SidebarModulesCard() {
             {loading ? t('Saving...') : t('Save Changes')}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }

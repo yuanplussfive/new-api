@@ -37,16 +37,11 @@ export const MOTION_TRANSITION: Record<string, Transition> = {
 
 export const MOTION_VARIANTS = {
   pageEnter: {
-    initial: { opacity: 0, y: 8, filter: 'blur(4px)' },
-    animate: {
-      opacity: 1,
-      y: 0,
-      // Exact zero blur can blank the page on some Android renderers.
-      // Preserve the blur animation, then release the filter after it finishes.
-      filter: 'blur(0.01px)',
-      transitionEnd: { filter: 'none' },
-    },
-    exit: { opacity: 0, y: -4, filter: 'blur(2px)' },
+    // Crisp and quick: a short rise and fade. No blur — it softens text and
+    // costs GPU time on every navigation.
+    initial: { opacity: 0, y: 4 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -2 },
   },
   fadeIn: {
     initial: { opacity: 0 },
@@ -54,32 +49,32 @@ export const MOTION_VARIANTS = {
     exit: { opacity: 0 },
   },
   scaleIn: {
-    initial: { opacity: 0, scale: 0.96 },
+    initial: { opacity: 0, scale: 0.98 },
     animate: { opacity: 1, scale: 1 },
-    exit: { opacity: 0, scale: 0.96 },
+    exit: { opacity: 0, scale: 0.98 },
   },
   slideUp: {
-    initial: { opacity: 0, y: 16 },
+    initial: { opacity: 0, y: 8 },
     animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: 16 },
+    exit: { opacity: 0, y: 8 },
   },
   slideDown: {
-    initial: { opacity: 0, y: -16 },
+    initial: { opacity: 0, y: -8 },
     animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -16 },
+    exit: { opacity: 0, y: -8 },
   },
   tableRow: {
-    initial: { opacity: 0, y: 4 },
+    initial: { opacity: 0, y: 2 },
     animate: { opacity: 1, y: 0 },
   },
   cardItem: {
-    initial: { opacity: 0, y: 12, scale: 0.98 },
-    animate: { opacity: 1, y: 0, scale: 1 },
+    initial: { opacity: 0, y: 6 },
+    animate: { opacity: 1, y: 0 },
   },
   sidebarSlide: {
-    initial: { opacity: 0, x: -8 },
+    initial: { opacity: 0, x: -4 },
     animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -8 },
+    exit: { opacity: 0, x: -4 },
   },
 } as const
 
@@ -89,7 +84,7 @@ export const STAGGER_VARIANTS: Variants = {
 }
 
 export const STAGGER_ITEM_VARIANTS: Variants = {
-  initial: { opacity: 0, y: 8 },
+  initial: { opacity: 0, y: 6 },
   animate: { opacity: 1, y: 0, transition: MOTION_TRANSITION.default },
 }
 
@@ -109,11 +104,10 @@ export const CARD_STAGGER_VARIANTS: Variants = {
 }
 
 export const CARD_ITEM_VARIANTS: Variants = {
-  initial: { opacity: 0, y: 12, scale: 0.98 },
+  initial: { opacity: 0, y: 6 },
   animate: {
     opacity: 1,
     y: 0,
-    scale: 1,
     transition: MOTION_TRANSITION.default,
   },
 }

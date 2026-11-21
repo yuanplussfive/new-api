@@ -24,10 +24,15 @@ import { STORAGE_KEYS } from '../../../constants'
 import type { Message } from '../../../types'
 import {
   clearPlaygroundData,
+  deleteConversation,
+  loadActiveConversationId,
   loadConfig,
+  loadConversations,
   loadMessages,
   loadParameterEnabled,
+  saveActiveConversationId,
   saveConfig,
+  saveConversationSnapshot,
   saveMessages,
   saveParameterEnabled,
 } from '../storage'
@@ -78,6 +83,21 @@ test('switching accounts isolates config, messages and parameter toggles and pre
   expect(loadParameterEnabled()).toEqual({ temperature: false })
 })
 
+test('persists the per-model wire format map', () => {
+  useAuthStore.getState().auth.setUser({ id: 1, username: 'A', role: 1 })
+  saveConfig({
+    apiFormat: 'responses',
+    apiFormatByModel: { 'model-a': 'responses', 'model-b': 'claude' },
+    modelByGroup: { default: 'model-a', vip: 'model-b' },
+  })
+
+  expect(loadConfig()).toEqual({
+    apiFormat: 'responses',
+    apiFormatByModel: { 'model-a': 'responses', 'model-b': 'claude' },
+    modelByGroup: { default: 'model-a', vip: 'model-b' },
+  })
+})
+
 test('legacy global data is removed instead of assigned to the first signed-in account', () => {
   localStorage.setItem(
     STORAGE_KEYS.CONFIG,
@@ -106,4 +126,61 @@ test('storage calls without a signed-in user do not persist shared data', () => 
   expect(loadMessages()).toBeNull()
   expect(loadParameterEnabled()).toEqual({})
   expect(localStorage.length).toBe(0)
+})
+
+test('archives conversations locally and restores the last opened one', () => {
+  useAuthStore.getState().auth.setUser({ id: 1, username: 'A', role: 1 })
+
+  const first = saveConversationSnapshot({ id: 'chat-a', messages })
+  expect(first).toHaveLength(1)
+  expect(first[0].title).toBe('Account A private chat')
+
+  const secondMessages: Message[] = [
+    {
+      key: 'b-chat',
+      from: 'user',
+      versions: [{ id: 'b-version', content: 'Second conversation' }],
+    },
+  ]
+  const second = saveConversationSnapshot({
+    id: 'chat-b',
+    messages: secondMessages,
+  })
+  expect(second.map((item) => item.id)).toEqual(['chat-b', 'chat-a'])
+
+  const updated = saveConversationSnapshot({
+    id: 'chat-a',
+    messages: [...messages, { ...messages[0], key: 'a-follow-up' }],
+  })
+  expect(updated.map((item) => item.id)).toEqual(['chat-a', 'chat-b'])
+
+  saveActiveConversationId('chat-a')
+  expect(loadActiveConversationId()).toBe('chat-a')
+  expect(loadConversations().map((item) => item.id)).toEqual([
+    'chat-a',
+    'chat-b',
+  ])
+
+  expect(deleteConversation('chat-b').map((item) => item.id)).toEqual([
+    'chat-a',
+  ])
+  saveActiveConversationId(null)
+  expect(loadActiveConversationId()).toBeNull()
+})
+
+test('conversation archive is scoped to the signed-in account and cleared with playground data', () => {
+  useAuthStore.getState().auth.setUser({ id: 1, username: 'A', role: 1 })
+  saveConversationSnapshot({ id: 'chat-a', messages })
+  saveActiveConversationId('chat-a')
+
+  useAuthStore.getState().auth.setUser({ id: 2, username: 'B', role: 1 })
+  expect(loadConversations()).toEqual([])
+  expect(loadActiveConversationId()).toBeNull()
+
+  useAuthStore.getState().auth.setUser({ id: 1, username: 'A', role: 1 })
+  expect(loadConversations()).toHaveLength(1)
+
+  clearPlaygroundData()
+  expect(loadConversations()).toEqual([])
+  expect(loadActiveConversationId()).toBeNull()
 })

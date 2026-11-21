@@ -59,7 +59,6 @@ import {
   SettingsSwitchContent,
   SettingsSwitchItem,
 } from '../components/settings-form-layout'
-import { SettingsPageActionsPortal } from '../components/settings-page-context'
 import {
   ModelRatioVisualEditor,
   type ModelRatioVisualEditorHandle,
@@ -312,124 +311,135 @@ export const ModelRatioForm = memo(function ModelRatioForm({
     <Form {...form}>
       <div className='flex min-h-0 flex-1 flex-col gap-6'>
         {!isUnsetVariant && (
-          <div className='flex shrink-0 flex-wrap items-center justify-end gap-2'>
-            <SettingsPageActionsPortal>
-              <FormField
-                control={form.control}
-                name='ExposeRatioEnabled'
-                render={({ field }) => (
-                  <SettingsSwitchItem className='gap-2 py-0'>
-                    <SettingsSwitchContent>
+          <div
+            role='group'
+            aria-label={t('Model prices')}
+            className='border-line-subtle flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b pb-3'
+          >
+            <FormField
+              control={form.control}
+              name='ExposeRatioEnabled'
+              render={({ field }) => (
+                <SettingsSwitchItem className='min-h-9 justify-start gap-3 border-0 py-0'>
+                  <SettingsSwitchContent>
+                    <div className='flex items-center gap-1.5'>
                       <FormLabel>{t('Expose ratio API')}</FormLabel>
-                      <FormDescription className='sr-only'>
+                      <LearnMore
+                        contentProps={{ side: 'bottom', align: 'start' }}
+                      >
                         {t(
                           'Allow clients to query configured prices via `/api/ratio`.'
                         )}
-                      </FormDescription>
-                    </SettingsSwitchContent>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <LearnMore contentProps={{ side: 'bottom', align: 'end' }}>
+                      </LearnMore>
+                    </div>
+                    <FormDescription className='sr-only'>
                       {t(
                         'Allow clients to query configured prices via `/api/ratio`.'
                       )}
-                    </LearnMore>
-                  </SettingsSwitchItem>
-                )}
-              />
-            </SettingsPageActionsPortal>
-            <FormDirtyIndicator
-              isDirty={hasChanges}
-              message={
-                changeRows.length > 0
-                  ? t('{{count}} unsaved price changes', {
-                      count: changeRows.length,
-                    })
-                  : undefined
-              }
+                    </FormDescription>
+                  </SettingsSwitchContent>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsSwitchItem>
+              )}
             />
-            {isMobile ? (
-              // Phones keep Save on the same row and move the rest here.
-              <DataTableRowActionMenu
-                ariaLabel={t('More actions')}
-                trigger={
-                  <Button type='button' variant='outline' size='icon-sm'>
-                    <MoreHorizontal aria-hidden='true' />
-                  </Button>
+            <div className='ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2'>
+              <FormDirtyIndicator
+                isDirty={hasChanges}
+                message={
+                  changeRows.length > 0
+                    ? t('{{count}} unsaved price changes', {
+                        count: changeRows.length,
+                      })
+                    : undefined
                 }
-              >
-                <DropdownMenuItem
-                  variant='destructive'
-                  onClick={onReset}
-                  disabled={isResetting}
+              />
+              {isMobile ? (
+                // Phones keep Save on the same row and move the rest here.
+                <DataTableRowActionMenu
+                  ariaLabel={t('More actions')}
+                  trigger={
+                    <Button type='button' variant='outline' size='icon-sm'>
+                      <MoreHorizontal aria-hidden='true' />
+                    </Button>
+                  }
                 >
-                  <RotateCcw />
-                  {t('Reset prices')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={toggleEditMode}>
-                  <EditModeIcon />
-                  {editModeLabel}
-                </DropdownMenuItem>
-                {hasChanges && (
-                  <DropdownMenuItem onClick={handleDiscard} disabled={isSaving}>
-                    <Undo2 />
-                    {t('Discard changes')}
+                  <DropdownMenuItem
+                    variant='destructive'
+                    onClick={onReset}
+                    disabled={isResetting}
+                  >
+                    <RotateCcw />
+                    {t('Reset prices')}
                   </DropdownMenuItem>
-                )}
-              </DataTableRowActionMenu>
-            ) : (
-              <>
-                <Button
-                  type='button'
-                  variant='destructive'
-                  size='sm'
-                  onClick={onReset}
-                  disabled={isResetting}
-                >
-                  <RotateCcw data-icon='inline-start' />
-                  {t('Reset prices')}
-                </Button>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  onClick={toggleEditMode}
-                >
-                  <EditModeIcon data-icon='inline-start' />
-                  {editModeLabel}
-                </Button>
-                {hasChanges && (
+                  <DropdownMenuItem onClick={toggleEditMode}>
+                    <EditModeIcon />
+                    {editModeLabel}
+                  </DropdownMenuItem>
+                  {hasChanges && (
+                    <DropdownMenuItem
+                      onClick={handleDiscard}
+                      disabled={isSaving}
+                    >
+                      <Undo2 />
+                      {t('Discard changes')}
+                    </DropdownMenuItem>
+                  )}
+                </DataTableRowActionMenu>
+              ) : (
+                <>
+                  <Button
+                    type='button'
+                    variant='destructive'
+                    size='sm'
+                    onClick={onReset}
+                    disabled={isResetting}
+                  >
+                    <RotateCcw data-icon='inline-start' />
+                    {t('Reset prices')}
+                  </Button>
                   <Button
                     type='button'
                     variant='outline'
                     size='sm'
-                    onClick={handleDiscard}
-                    disabled={isSaving}
+                    onClick={toggleEditMode}
                   >
-                    <Undo2 data-icon='inline-start' />
-                    {t('Discard changes')}
+                    <EditModeIcon data-icon='inline-start' />
+                    {editModeLabel}
                   </Button>
-                )}
-              </>
-            )}
-            <Button
-              type='button'
-              size='sm'
-              onClick={handleSave}
-              disabled={isSaving || !hasChanges}
-            >
-              <Save data-icon='inline-start' />
-              {isSaving ? t('Saving...') : t('Save model prices')}
-              {changeRows.length > 0 && (
-                <span className='bg-primary-foreground/20 ml-0.5 rounded-full px-1.5 text-xs tabular-nums'>
-                  {changeRows.length}
-                </span>
+                  {hasChanges && (
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={handleDiscard}
+                      disabled={isSaving}
+                    >
+                      <Undo2 data-icon='inline-start' />
+                      {t('Discard changes')}
+                    </Button>
+                  )}
+                </>
               )}
-            </Button>
+              <Button
+                type='button'
+                size='sm'
+                onClick={handleSave}
+                disabled={isSaving || !hasChanges}
+              >
+                <Save data-icon='inline-start' />
+                {isSaving ? t('Saving...') : t('Save model prices')}
+                {changeRows.length > 0 && (
+                  <span className='bg-primary-foreground/20 ml-0.5 rounded-full px-1.5 text-xs tabular-nums'>
+                    {changeRows.length}
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
         )}
 

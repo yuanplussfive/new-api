@@ -122,6 +122,7 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 	if resp == nil || dataHandler == nil {
 		return
 	}
+	info.BeginStreamTiming()
 
 	// Finish the request keepalive before changing headers. The scanner owns
 	// subsequent ping and data writes through its shared write mutex.
@@ -172,6 +173,7 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 
 	cleanup := func() {
 		cleanupOnce.Do(func() {
+			info.FinishStreamTiming()
 			cancel()
 			stop()
 			if resp.Body != nil {
@@ -274,6 +276,7 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 	wg.Add(1)
 	common.RelayCtxGo(ctx, func() {
 		defer func() {
+			info.FinishStreamTiming()
 			close(dataChan)
 			if r := recover(); r != nil {
 				logger.LogError(c, common.LogText("scanner goroutine panic: %v", r))
@@ -306,6 +309,7 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			if data == "" {
 				continue
 			}
+			info.ObserveStreamChunk(data)
 			if data != "[DONE]" {
 				info.SetFirstResponseTime()
 				info.ReceivedResponseCount++

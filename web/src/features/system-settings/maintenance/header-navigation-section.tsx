@@ -219,7 +219,7 @@ export function HeaderNavigationSection({
             resetLabel='Reset to default'
             saveLabel='Save navigation'
           />
-          <div className='grid gap-4 md:grid-cols-2'>
+          <div className='grid gap-0'>
             {simpleModules.map((module) => (
               <FormField
                 key={module.key}
@@ -244,7 +244,7 @@ export function HeaderNavigationSection({
             ))}
           </div>
 
-          <div className='grid gap-4 lg:grid-cols-2'>
+          <div className='grid gap-0'>
             {accessModules.map((module) => (
               <SettingsControlGroup key={module.enabledKey}>
                 <FormField

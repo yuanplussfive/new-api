@@ -181,11 +181,12 @@ export function buildModelRatioColumns({
     },
     {
       accessorKey: 'billingMode',
+      size: 160,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('Mode')} />
       ),
       cell: ({ row }) => (
-        <span className='text-foreground block truncate'>
+        <span className='text-foreground block text-[12.5px] leading-snug whitespace-normal'>
           {t(getModeLabel(row.original.billingMode))}
         </span>
       ),
@@ -217,7 +218,7 @@ export function buildModelRatioColumns({
             row.original.isDraftDeleted && 'line-through'
           )}
         >
-          <span className='truncate font-medium'>
+          <span className='truncate font-medium tabular-nums'>
             {getPriceSummary(row.original, t)}
           </span>
           <span className='text-muted-foreground truncate text-xs'>
@@ -233,7 +234,7 @@ export function buildModelRatioColumns({
     },
     {
       id: 'actions',
-      header: () => <div>{t('Actions')}</div>,
+      header: () => <div className='text-right'>{t('Actions')}</div>,
       cell: ({ row }) => {
         if (row.original.isDraftDeleted) {
           return (

@@ -16,19 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Settings } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TitledCard } from '@/components/ui/titled-card'
 
 import type { UserProfile } from '../types'
 import { NotificationTab } from './tabs/notification-tab'
-
-// ============================================================================
-// Profile Settings Card Component
-// ============================================================================
 
 interface ProfileSettingsCardProps {
   profile: UserProfile | null
@@ -38,45 +29,26 @@ interface ProfileSettingsCardProps {
   quotaRemindThreshold: number
 }
 
-export function ProfileSettingsCard({
-  profile,
-  loading,
-  onProfileUpdate,
-  quotaRemindEnabled,
-  quotaRemindThreshold,
-}: ProfileSettingsCardProps) {
-  const { t } = useTranslation()
-
-  if (loading) {
+export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
+  if (props.loading) {
     return (
-      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
-        <CardHeader className='border-b p-3 !pb-3 sm:p-5 sm:!pb-5'>
-          <Skeleton className='h-6 w-32' />
-          <Skeleton className='mt-2 h-4 w-48' />
-        </CardHeader>
-        <CardContent className='space-y-4 p-3 sm:p-5'>
-          {['notifications', 'threshold', 'preferences'].map((key) => (
-            <Skeleton key={key} className='h-20 w-full' />
+      <div className='profile-section' aria-busy='true'>
+        <Skeleton className='h-5 w-32' />
+        <div className='mt-5 flex flex-col gap-4'>
+          {['method', 'reminder', 'preference'].map((key) => (
+            <Skeleton key={key} className='h-12 w-full' />
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     )
   }
 
   return (
-    <TitledCard
-      title={t('Settings')}
-      description={t('Settings & Preferences')}
-      icon={<Settings className='h-4 w-4' />}
-      iconTone='info'
-      disableHoverEffect
-    >
-      <NotificationTab
-        profile={profile}
-        onUpdate={onProfileUpdate}
-        quotaRemindEnabled={quotaRemindEnabled}
-        quotaRemindThreshold={quotaRemindThreshold}
-      />
-    </TitledCard>
+    <NotificationTab
+      profile={props.profile}
+      onUpdate={props.onProfileUpdate}
+      quotaRemindEnabled={props.quotaRemindEnabled}
+      quotaRemindThreshold={props.quotaRemindThreshold}
+    />
   )
 }

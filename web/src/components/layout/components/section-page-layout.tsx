@@ -24,6 +24,8 @@ import {
   type ReactNode,
 } from 'react'
 
+import { cn } from '@/lib/utils'
+
 import { Main } from './main'
 import { PageFooterProvider } from './page-footer'
 
@@ -33,6 +35,11 @@ function SectionPageLayoutTitle(_props: SlotProps) {
   return null
 }
 SectionPageLayoutTitle.displayName = 'SectionPageLayout.Title'
+
+function SectionPageLayoutDescription(_props: SlotProps) {
+  return null
+}
+SectionPageLayoutDescription.displayName = 'SectionPageLayout.Description'
 
 function SectionPageLayoutActions(_props: SlotProps) {
   return null
@@ -53,6 +60,9 @@ export type SectionPageLayoutProps = {
   children: ReactNode
   fixedContent?: boolean
   stackActionsOnMobile?: boolean
+  variant?: 'default' | 'settings'
+  /** Drop the content inset so a page can run its panels to the edges. */
+  flushContent?: boolean
 }
 
 export function SectionPageLayout(props: SectionPageLayoutProps) {
@@ -61,6 +71,7 @@ export function SectionPageLayout(props: SectionPageLayoutProps) {
   )
 
   let title: ReactNode = null
+  let description: ReactNode = null
   let actions: ReactNode = null
   let content: ReactNode = null
   let breadcrumb: ReactNode = null
@@ -69,7 +80,9 @@ export function SectionPageLayout(props: SectionPageLayoutProps) {
     if (!isValidElement(node)) return
     const child = node as ReactElement<SlotProps>
     if (child.type === SectionPageLayoutTitle) title = child.props.children
-    else if (child.type === SectionPageLayoutActions) {
+    else if (child.type === SectionPageLayoutDescription) {
+      description = child.props.children
+    } else if (child.type === SectionPageLayoutActions) {
       actions = child.props.children
     } else if (child.type === SectionPageLayoutContent) {
       content = child.props.children
@@ -80,8 +93,11 @@ export function SectionPageLayout(props: SectionPageLayoutProps) {
 
   return (
     <PageFooterProvider container={footerContainer}>
-      <Main>
-        <div className='shrink-0 px-3 pt-3 pb-2.5 sm:px-4 sm:pt-5 sm:pb-3'>
+      <Main
+        data-page-layout={props.variant ?? 'default'}
+        data-flush={props.flushContent ? '' : undefined}
+      >
+        <div className='workspace-page-header shrink-0'>
           {breadcrumb != null && (
             <div className='mb-2 sm:mb-3'>{breadcrumb}</div>
           )}
@@ -93,7 +109,7 @@ export function SectionPageLayout(props: SectionPageLayoutProps) {
                   : 'min-w-0 flex-1'
               }
             >
-              <h2 className='truncate text-base font-bold tracking-tight sm:text-lg'>
+              <h2 className='text-content-strong text-[20px] leading-[1.25] font-semibold tracking-[-0.02em] break-words sm:text-[23px]'>
                 {title}
               </h2>
             </div>
@@ -103,21 +119,25 @@ export function SectionPageLayout(props: SectionPageLayoutProps) {
               </div>
             )}
           </div>
+          {description != null && (
+            <p className='text-content-secondary mt-1.5 max-w-2xl text-[13px] leading-[1.6]'>
+              {description}
+            </p>
+          )}
         </div>
 
         <div
-          className={
-            props.fixedContent
-              ? 'min-h-0 flex-1 overflow-hidden px-3 pt-1 pb-3 sm:px-4 sm:pt-1.5 sm:pb-4'
-              : 'min-h-0 flex-1 overflow-auto px-3 pt-1 pb-3 sm:px-4 sm:pt-1.5 sm:pb-4'
-          }
+          className={cn(
+            'workspace-page-content min-h-0 flex-1',
+            props.fixedContent ? 'overflow-hidden' : 'overflow-auto'
+          )}
         >
           {content}
         </div>
 
         <div
           ref={setFooterContainer}
-          className='bg-background shrink-0 border-t px-3 py-2.5 empty:hidden sm:px-4 sm:py-3'
+          className='workspace-page-footer bg-background shrink-0 border-t empty:hidden'
         />
       </Main>
     </PageFooterProvider>
@@ -125,6 +145,7 @@ export function SectionPageLayout(props: SectionPageLayoutProps) {
 }
 
 SectionPageLayout.Title = SectionPageLayoutTitle
+SectionPageLayout.Description = SectionPageLayoutDescription
 SectionPageLayout.Actions = SectionPageLayoutActions
 SectionPageLayout.Content = SectionPageLayoutContent
 SectionPageLayout.Breadcrumb = SectionPageLayoutBreadcrumb

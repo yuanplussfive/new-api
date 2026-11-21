@@ -20,26 +20,7 @@ import { api } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
 import { API_ENDPOINTS } from './constants'
-import type {
-  ChatCompletionRequest,
-  ChatCompletionResponse,
-  ModelOption,
-  GroupOption,
-} from './types'
-
-/**
- * Send chat completion request (non-streaming)
- */
-export async function sendChatCompletion(
-  payload: ChatCompletionRequest,
-  signal?: AbortSignal
-): Promise<ChatCompletionResponse> {
-  const res = await api.post(API_ENDPOINTS.CHAT_COMPLETIONS, payload, {
-    signal,
-    skipErrorHandler: true,
-  } as Record<string, unknown>)
-  return res.data
-}
+import type { ModelOption, GroupOption } from './types'
 
 /**
  * Get user available models

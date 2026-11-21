@@ -18,10 +18,13 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { ReactNode } from 'react'
 
-import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
-import { Label } from '@/components/ui/label'
+import type { IconBadgeTone } from '@/components/ui/icon-badge'
 import { cn } from '@/lib/utils'
 
+/**
+ * Rows stay on one line so long identifiers can be scanned down the value
+ * column, matching the dense table above the dialog.
+ */
 export function DetailRow(props: {
   label: ReactNode
   value: ReactNode
@@ -29,15 +32,13 @@ export function DetailRow(props: {
   muted?: boolean
 }) {
   return (
-    <div className='grid min-w-0 grid-cols-[5.25rem_minmax(0,1fr)] gap-2 text-sm sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-3'>
-      <span className='text-muted-foreground min-w-0 text-xs'>
-        {props.label}
-      </span>
+    <div className='grid min-w-0 grid-cols-[5.25rem_minmax(0,1fr)] items-baseline gap-x-3 py-1.5 text-xs leading-5 sm:grid-cols-[7rem_minmax(0,1fr)]'>
+      <span className='text-content-muted min-w-0'>{props.label}</span>
       <span
         className={cn(
-          'max-w-full min-w-0 text-xs break-all sm:wrap-break-word',
-          props.mono && 'font-mono',
-          props.muted && 'text-muted-foreground'
+          'min-w-0 break-all',
+          props.mono && 'font-mono text-[11.5px]',
+          props.muted && 'text-content-muted'
         )}
       >
         {props.value}
@@ -54,32 +55,27 @@ export function DetailSection(props: {
   children: ReactNode
 }) {
   const isDanger = props.variant === 'danger'
-  const iconTone = isDanger ? 'destructive' : props.iconTone
   return (
-    <div className='min-w-0 space-y-1.5'>
-      <Label
-        className={cn(
-          'flex items-center gap-1.5 text-xs font-semibold',
-          isDanger && 'text-red-500'
-        )}
-      >
-        {props.icon && (
-          <IconBadge tone={iconTone} size='xs'>
-            {props.icon}
-          </IconBadge>
-        )}
-        {props.label}
-      </Label>
+    <section className='min-w-0'>
       <div
         className={cn(
-          'min-w-0 space-y-1 overflow-hidden rounded-md border p-2.5 max-sm:p-2',
-          isDanger
-            ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20'
-            : 'bg-muted/30'
+          'text-content-secondary flex items-center gap-1.5 border-b border-line-subtle pb-1.5 text-[12px] font-semibold',
+          isDanger && 'text-destructive'
         )}
       >
+        {props.icon != null && (
+          <span
+            aria-hidden='true'
+            className='inline-flex size-3.5 items-center'
+          >
+            {props.icon}
+          </span>
+        )}
+        {props.label}
+      </div>
+      <div className='divide-line-subtle min-w-0 divide-y'>
         {props.children}
       </div>
-    </div>
+    </section>
   )
 }

@@ -1,0 +1,127 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+/* Full-height navigation and an independently scrolling stage.
+ *
+ * The stage is the only large bordered surface in the authenticated shell.
+ * Everything inside it groups with spacing and hairlines instead of adding
+ * another card, which is what kept pages reading as stacked templates. */
+@layer components {
+  .workspace-shell {
+    --app-header-height: 0px;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--surface-canvas);
+  }
+  .workspace-shell .workspace-stage {
+    min-width: 0;
+    background: var(--surface-panel);
+  }
+  .workspace-header {
+    border-bottom: 1px solid var(--line-subtle);
+    background: var(--surface-panel);
+  }
+  .workspace-shell [data-slot='sidebar-inner'] { border-radius: 12px; }
+  .workspace-shell [data-slot='sidebar-group'] {
+    padding-inline: 0.5rem;
+    padding-block: 0.125rem;
+  }
+  .workspace-shell [data-slot='sidebar-group'] + [data-slot='sidebar-group'] {
+    margin-top: 0.375rem;
+  }
+  .workspace-shell [data-slot='sidebar-group-label'] {
+    height: 1.75rem; padding-inline: 0.625rem; font-size: 11.5px;
+    font-weight: 600; letter-spacing: 0.02em;
+    color: var(--content-muted);
+  }
+  .workspace-shell [data-slot='sidebar-menu-button'] {
+    min-height: 2.375rem; border-radius: 8px; font-size: 13.5px;
+    font-weight: 450; gap: 0.75rem; padding-inline: 0.625rem;
+    color: var(--content-secondary);
+    transition:
+      background-color 140ms ease-out,
+      color 140ms ease-out;
+  }
+  .workspace-shell [data-slot='sidebar-menu-button']:hover {
+    background: var(--surface-hover);
+    color: var(--content-strong);
+  }
+  .workspace-shell [data-slot='sidebar-menu-button'][data-active='true'] {
+    background: var(--surface-subtle);
+    color: var(--content-strong);
+    font-weight: 550;
+  }
+  .workspace-shell [data-slot='sidebar-menu-button'] > svg {
+    width: 1.125rem; height: 1.125rem; opacity: 0.8; stroke-width: 1.6;
+  }
+  .workspace-shell [data-slot='sidebar-menu-sub-button'] {
+    min-height: 2rem; border-radius: 8px; font-size: 13px;
+    padding-inline: 0.625rem 0.5rem;
+  }
+  .workspace-page-header {
+    padding: 1.5rem 1.25rem 1.125rem;
+    background: var(--surface-panel);
+  }
+  .workspace-page-content {
+    padding: 0 1.25rem 1.5rem;
+    scrollbar-gutter: stable;
+  }
+  .workspace-page-footer {
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--line-subtle);
+  }
+  /* Flush pages run their panels to the content edges: no inset and no
+     reserved scrollbar gutter, so no white strip appears on the right. */
+  [data-flush] .workspace-page-content {
+    padding: 0;
+    scrollbar-gutter: auto;
+  }
+  [data-flush] .workspace-page-header {
+    padding-bottom: 0.75rem;
+  }
+  .workspace-resource-rail {
+    display: flex; min-width: 0; flex-direction: column; gap: 1.25rem;
+  }
+  @media (min-width: 768px) {
+    .workspace-shell .workspace-stage {
+      margin: 10px 10px 10px 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--surface-shadow);
+    }
+    .workspace-shell [data-slot='sidebar-container'] {
+      padding: 10px 6px 10px 10px;
+    }
+    .workspace-page-header { padding: 1.75rem 2rem 1.25rem; }
+    .workspace-page-content { padding: 0 2rem 2rem; }
+    .workspace-page-footer { padding-inline: 2rem; }
+  }
+  @media (min-width: 1440px) {
+    .workspace-overview-grid {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(290px, 320px);
+      align-items: start; gap: 1.5rem;
+    }
+    .workspace-resource-rail { position: sticky; top: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .workspace-shell [data-slot='sidebar-container'],
+    .workspace-shell [data-slot='sidebar-gap'] { transition: none; }
+    .workspace-shell [data-slot='sidebar-menu-button'] { transition: none; }
+  }
+}

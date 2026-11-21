@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Save } from 'lucide-react'
+import { AlertTriangle, Save, X } from 'lucide-react'
 import {
   forwardRef,
   useCallback,
@@ -134,6 +134,7 @@ type ModelPricingEditorPanelProps = Omit<
 > & {
   className?: string
   embedded?: boolean
+  onClose?: () => void
 }
 
 export type ModelPricingEditorPanelHandle = {
@@ -167,7 +168,9 @@ export const ModelPricingSheet = forwardRef<
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side='right'
-        className={sideDrawerContentClassName('sm:max-w-2xl')}
+        className={sideDrawerContentClassName(
+          'max-sm:border-l-0 sm:max-w-2xl motion-reduce:transition-none'
+        )}
       >
         <SheetHeader className='sr-only'>
           <SheetTitle>{title}</SheetTitle>
@@ -202,6 +205,7 @@ export const ModelPricingEditorPanel = forwardRef<
     pluginVariants,
     onDirtyChange,
     embedded = false,
+    onClose,
     scrollHeader,
   },
   ref
@@ -870,20 +874,29 @@ export const ModelPricingEditorPanel = forwardRef<
 
   return (
     <div
+      data-settings-field-layout='stacked'
       className={cn(
-        'bg-background flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border',
+        'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
         className
       )}
     >
       {!embedded && (
-        <div className='border-b p-4'>
-          <div className='flex flex-wrap items-start justify-between gap-3'>
-            <div className='min-w-0'>
-              <h3 className='truncate text-base font-medium'>
-                {isEditMode ? t('Edit model pricing') : t('Add model pricing')}
-              </h3>
-            </div>
-          </div>
+        <div className='border-line-subtle flex min-h-12 shrink-0 items-center justify-between gap-3 border-b px-4'>
+          <h3 className='min-w-0 truncate text-sm font-semibold'>
+            {isEditMode ? t('Edit model pricing') : t('Add model pricing')}
+          </h3>
+          {onClose && (
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon-sm'
+              aria-label={t('Close')}
+              onClick={onClose}
+              disabled={isSaving}
+            >
+              <X aria-hidden='true' />
+            </Button>
+          )}
         </div>
       )}
 
@@ -1185,7 +1198,7 @@ export const ModelPricingEditorPanel = forwardRef<
 
               <aside
                 aria-label={t('Preview')}
-                className='bg-muted/20 min-w-0 rounded-lg border @min-[960px]/pricing-editor:sticky @min-[960px]/pricing-editor:top-0'
+                className='border-line-subtle min-w-0 border-t @min-[960px]/pricing-editor:sticky @min-[960px]/pricing-editor:top-0'
               >
                 <div className='border-b px-3 py-2'>
                   <div className='text-sm font-medium'>

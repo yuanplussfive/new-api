@@ -18,13 +18,14 @@ For commercial licensing, please contact support@quantumnous.com
 */
 'use client'
 
-import { BrainIcon, ChevronDownIcon } from 'lucide-react'
+import { ChevronDownIcon } from 'lucide-react'
 import {
   type ComponentProps,
   createContext,
   memo,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -37,6 +38,7 @@ import {
 import { useControllableState } from '@/lib/use-controllable-state'
 import { cn } from '@/lib/utils'
 
+import { DeepSeekThinkIcon } from './deepseek-think-icon'
 import { Response } from './response'
 import { Shimmer } from './shimmer'
 
@@ -152,37 +154,39 @@ export const ReasoningTrigger = memo(
     return (
       <CollapsibleTrigger
         className={cn(
-          'text-muted-foreground hover:text-foreground inline-grid w-fit max-w-full grid-cols-[0.875rem_minmax(0,auto)_0.875rem] items-center gap-1.5 text-sm leading-none transition-colors [&_p]:m-0',
+          'text-content-secondary hover:text-foreground group flex h-[34px] w-fit max-w-full items-center gap-1.5 text-[13px] leading-none transition-colors [&_p]:m-0',
           className
         )}
         {...props}
       >
         {children ?? (
           <>
-            <span className='grid size-3.5 place-items-center'>
-              <BrainIcon className='size-3.5' />
+            <span className='text-primary grid size-4 place-items-center'>
+              <DeepSeekThinkIcon className='size-4' />
             </span>
-            <span className='min-w-0 truncate leading-none'>
+            <span className='min-w-0 truncate leading-none font-medium'>
               {isStreaming ? (
                 <Shimmer duration={1}>{t('Thinking...')}</Shimmer>
               ) : (
                 thinkingText
               )}
             </span>
-            <span className='grid size-3.5 place-items-center'>
-              <ChevronDownIcon
-                className={cn(
-                  'size-3.5 transition-transform duration-200 ease-out',
-                  isOpen ? 'rotate-180' : 'rotate-0'
-                )}
-              />
-            </span>
+            <ChevronDownIcon
+              className={cn(
+                'size-3.5 transition-transform duration-200 ease-out',
+                isOpen ? 'rotate-180' : 'rotate-0'
+              )}
+            />
           </>
         )}
       </CollapsibleTrigger>
     )
   }
 )
+
+const PROGRESSIVE_INITIAL_CHARS = 4000
+const PROGRESSIVE_CHUNK_CHARS = 8000
+const PROGRESSIVE_CHUNK_DELAY_MS = 32
 
 export type ReasoningContentProps = ComponentProps<
   typeof CollapsibleContent
@@ -192,26 +196,89 @@ export type ReasoningContentProps = ComponentProps<
 
 export const ReasoningContent = memo(
   ({ className, children, ...props }: ReasoningContentProps) => {
-    const { isStreaming } = useReasoning()
+    const { isStreaming, isOpen } = useReasoning()
+    const { t } = useTranslation()
+    const hasStreamedRef = useRef(isStreaming)
+    const [visibleChars, setVisibleChars] = useState(PROGRESSIVE_INITIAL_CHARS)
+
+    useEffect(() => {
+      if (isStreaming) {
+        hasStreamedRef.current = true
+      }
+    }, [isStreaming])
+
+    const progressive =
+      !isStreaming &&
+      !hasStreamedRef.current &&
+      children.length > PROGRESSIVE_INITIAL_CHARS
+
+    useEffect(() => {
+      if (!isOpen || !progressive || visibleChars >= children.length) {
+        return
+      }
+
+      const timer = setTimeout(() => {
+        setVisibleChars((current) =>
+          Math.min(children.length, current + PROGRESSIVE_CHUNK_CHARS)
+        )
+      }, PROGRESSIVE_CHUNK_DELAY_MS)
+
+      return () => clearTimeout(timer)
+    }, [children.length, isOpen, progressive, visibleChars])
+
+    const visibleContent = progressive
+      ? children.slice(0, Math.min(visibleChars, children.length))
+      : children
 
     return (
       <CollapsibleContent
         className={cn(
-          'CollapsibleContent group/reasoning-content border-border/70 mt-2 ml-1.5 border-l pl-3 text-sm leading-5',
-          'text-muted-foreground outline-none',
+          'CollapsibleContent group/reasoning-content mt-1 max-w-[78ch] text-[13px] leading-6',
+          'text-content-secondary outline-none',
           className
         )}
         {...props}
       >
-        <div className='transition-[opacity,transform] duration-200 ease-out group-data-[closed]/reasoning-content:-translate-y-1 group-data-[closed]/reasoning-content:opacity-0 group-data-[open]/reasoning-content:translate-y-0 group-data-[open]/reasoning-content:opacity-100 motion-reduce:transition-none'>
-          <Response
-            className='grid gap-1.5 [&_li]:my-0.5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_p]:leading-5 [&_ul]:my-1.5'
-            final={!isStreaming}
-            parserId='new-api-reasoning'
-          >
-            {children}
-          </Response>
-        </div>
+        {isOpen ? (
+          <div className='relative pt-1 pb-1 pl-[22px] transition-[opacity,transform] duration-200 ease-out group-data-[closed]/reasoning-content:-translate-y-1 group-data-[closed]/reasoning-content:opacity-0 group-data-[open]/reasoning-content:translate-y-0 group-data-[open]/reasoning-content:opacity-100 motion-reduce:transition-none'>
+            <span
+              aria-hidden='true'
+              className='bg-line-subtle absolute top-8 bottom-1 left-[7.5px] w-px'
+            />
+            <span
+              aria-hidden='true'
+              className='absolute top-[9px] left-0 grid size-4 place-items-center'
+            >
+              <span
+                className={cn(
+                  'size-[5px] rounded-full',
+                  isStreaming ? 'bg-primary animate-pulse' : 'bg-content-muted'
+                )}
+              />
+            </span>
+            <div
+              className='max-h-[min(40vh,360px)] overflow-y-auto overscroll-contain pr-2'
+              data-testid='reasoning-scroll'
+            >
+              <Response
+                className='grid gap-1.5 [&_li]:my-1 [&_ol]:my-2 [&_p]:my-2 [&_p]:leading-6 [&_ul]:my-2'
+                final={!isStreaming}
+                maxParsedChars={200_000}
+                parserId='new-api-reasoning'
+              >
+                {visibleContent}
+              </Response>
+              {progressive && visibleChars < children.length ? (
+                <div
+                  className='text-content-muted py-1 text-[11px]'
+                  role='status'
+                >
+                  {t('Loading...')}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </CollapsibleContent>
     )
   }

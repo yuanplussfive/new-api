@@ -1,3 +1,4 @@
+import type { FileUIPart } from 'ai'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -16,29 +17,40 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { X } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import {
   PromptInput,
+  PromptInputAttachments,
   PromptInputFooter,
+  PromptInputHeader,
   PromptInputTextarea,
+  usePromptInputAttachments,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input'
 
 import { getSubmittableInputText } from '../../lib'
 import type {
-  ModelOption,
   GroupOption,
+  MessageAttachment,
+  ModelOption,
   ParameterEnabled,
   PlaygroundConfig,
+  ThinkingLevel,
 } from '../../types'
 import { PlaygroundInputControls } from './playground-input-controls'
 import { PlaygroundInputTools } from './playground-input-tools'
 
+const MAX_ATTACHMENTS = 4
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
+
 interface PlaygroundInputProps {
   config: PlaygroundConfig
-  onSubmit: (text: string) => void
+  onSubmit: (text: string, attachments: MessageAttachment[]) => void
   onStop?: () => void
   disabled?: boolean
   isGenerating?: boolean
@@ -60,79 +72,124 @@ interface PlaygroundInputProps {
     value: boolean
   ) => void
   parameterEnabled: ParameterEnabled
+  thinkingOverrides: Record<string, ThinkingLevel[]>
+  onThinkingOverrideChange: (
+    modelId: string,
+    levels: ThinkingLevel[] | null
+  ) => void
 }
 
-export function PlaygroundInput({
-  config,
-  onSubmit,
-  onStop,
-  disabled,
-  isGenerating,
-  models,
-  modelValue,
-  onModelChange,
-  isModelLoading = false,
-  groups,
-  groupValue,
-  onGroupChange,
-  hasMessages = false,
-  onConfigChange,
-  onClearMessages,
-  onParameterEnabledChange,
-  parameterEnabled,
-}: PlaygroundInputProps) {
+function AttachmentCard(props: { attachment: FileUIPart & { id: string } }) {
+  const { t } = useTranslation()
+  const attachments = usePromptInputAttachments()
+  const shouldReduce = useReducedMotion()
+
+  return (
+    <motion.div
+      initial={shouldReduce ? false : { opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.15, ease: [0.33, 1, 0.68, 1] }}
+      className='group border-line-subtle bg-surface-subtle relative size-16 overflow-hidden rounded-[16px] border'
+    >
+      <img
+        src={props.attachment.url}
+        alt={props.attachment.filename ?? ''}
+        className='size-full object-cover'
+      />
+      <button
+        type='button'
+        aria-label={t('Remove attachment')}
+        onClick={() => attachments.remove(props.attachment.id)}
+        className='absolute top-0 right-0 flex size-5 items-center justify-center bg-black/60 text-white opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100'
+      >
+        <X className='size-3' aria-hidden='true' />
+      </button>
+    </motion.div>
+  )
+}
+
+export function PlaygroundInput(props: PlaygroundInputProps) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
 
   const handleSubmit = (message: PromptInputMessage) => {
-    const submittableText = getSubmittableInputText(message, disabled)
+    if (props.disabled) return
 
-    if (!submittableText) return
-    onSubmit(submittableText)
+    const submittableText = getSubmittableInputText(message) ?? ''
+    const attachments: MessageAttachment[] = (message.files ?? []).map(
+      (file) => ({
+        id: file.url,
+        mediaType: file.mediaType,
+        name: file.filename ?? 'image',
+        url: file.url,
+      })
+    )
+
+    if (!submittableText && attachments.length === 0) return
+
+    props.onSubmit(submittableText, attachments)
     setText('')
   }
 
   return (
     <div className='grid shrink-0 gap-4 px-1 md:pb-4'>
       <PromptInput
+        accept='image/*'
         className='relative'
-        groupClassName='bg-background/95 dark:bg-background/80 border-border/70 shadow-[0_18px_60px_-32px_rgba(0,0,0,0.65)] ring-1 ring-foreground/5 rounded-xl overflow-hidden transition-all duration-200 focus-within:border-primary/45 focus-within:ring-primary/15 focus-within:shadow-[0_22px_70px_-34px_rgba(0,0,0,0.75)]'
+        groupClassName='bg-[var(--chat-input-fill)]! border border-line rounded-[24px] overflow-hidden transition-[border-color,box-shadow] duration-150 focus-within:border-line-strong'
+        maxFiles={MAX_ATTACHMENTS}
+        maxFileSize={MAX_ATTACHMENT_BYTES}
+        globalDrop
+        multiple
+        onError={(error) => toast.error(error.message)}
         onSubmit={handleSubmit}
       >
+        <PromptInputHeader className='flex flex-wrap gap-2 px-4 pt-3 empty:hidden'>
+          <PromptInputAttachments>
+            {(attachment) => <AttachmentCard attachment={attachment} />}
+          </PromptInputAttachments>
+        </PromptInputHeader>
+
         <PromptInputTextarea
           autoComplete='off'
           autoCorrect='off'
           autoCapitalize='off'
           spellCheck={false}
-          className='min-h-20 px-5 pt-4 pb-3 leading-7 md:min-h-24 md:text-base'
-          disabled={disabled}
+          className='min-h-[60px] px-3 pt-3 pb-0 text-[16px] leading-6'
+          disabled={props.disabled}
           onChange={(event) => setText(event.target.value)}
-          placeholder={t('Ask anything')}
+          placeholder={t('Enter a message')}
           value={text}
         />
 
-        <PromptInputFooter className='border-border/60 bg-muted/20 dark:bg-muted/10 border-t px-3 py-2.5 backdrop-blur'>
+        <PromptInputFooter className='border-0 bg-transparent px-3 py-3'>
           <PlaygroundInputControls
-            disabled={disabled}
-            groups={groups}
-            groupValue={groupValue}
-            isGenerating={isGenerating}
-            isModelLoading={isModelLoading}
-            models={models}
-            modelValue={modelValue}
-            onGroupChange={onGroupChange}
-            onModelChange={onModelChange}
-            onStop={onStop}
+            apiFormat={props.config.apiFormat}
+            disabled={props.disabled}
+            groups={props.groups}
+            groupValue={props.groupValue}
+            isGenerating={props.isGenerating}
+            isModelLoading={props.isModelLoading}
+            models={props.models}
+            modelValue={props.modelValue}
+            onApiFormatChange={(value) =>
+              props.onConfigChange('apiFormat', value)
+            }
+            onGroupChange={props.onGroupChange}
+            onModelChange={props.onModelChange}
+            onStop={props.onStop}
             text={text}
             tools={
               <PlaygroundInputTools
-                config={config}
-                disabled={disabled}
-                hasMessages={hasMessages}
-                onConfigChange={onConfigChange}
-                onClearMessages={onClearMessages}
-                onParameterEnabledChange={onParameterEnabledChange}
-                parameterEnabled={parameterEnabled}
+                config={props.config}
+                disabled={props.disabled}
+                hasMessages={props.hasMessages}
+                onConfigChange={props.onConfigChange}
+                onClearMessages={props.onClearMessages}
+                onParameterEnabledChange={props.onParameterEnabledChange}
+                onThinkingOverrideChange={props.onThinkingOverrideChange}
+                parameterEnabled={props.parameterEnabled}
+                thinkingOverrides={props.thinkingOverrides}
               />
             }
           />

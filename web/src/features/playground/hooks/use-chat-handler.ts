@@ -21,22 +21,18 @@ import { useTranslation } from 'react-i18next'
 
 import { handleServerError } from '@/lib/handle-server-error'
 
-import { sendChatCompletion } from '../api'
 import { ERROR_MESSAGES } from '../constants'
 import {
+  applyCompletionResult,
   applyStreamingChunk,
-  buildChatCompletionPayload,
-  updateAssistantMessageWithError,
-  updateLastAssistantMessage,
-  parseRequestErrorDetails,
-  applyChatCompletionResponse,
   completeAssistantMessage,
-  hasChatCompletionChoice,
   isAssistantMessageFinal,
   isAssistantMessagePending,
+  updateAssistantMessageWithError,
+  updateLastAssistantMessage,
 } from '../lib'
+import { getPlaygroundErrorDetails } from '../lib/ai-sdk/playground-error'
 import type { Message, PlaygroundConfig, ParameterEnabled } from '../types'
-import { useStreamRequest } from './use-stream-request'
 
 interface UseChatHandlerOptions {
   config: PlaygroundConfig
@@ -73,7 +69,6 @@ export function useChatHandler({
   onMessageUpdate,
 }: UseChatHandlerOptions) {
   const { t } = useTranslation()
-  const { sendStreamRequest, stopStream, isStreaming } = useStreamRequest()
   const [isRequesting, setIsRequesting] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const requestGenerationRef = useRef(0)
@@ -249,23 +244,46 @@ export function useChatHandler({
       abortControllerRef.current?.abort()
       abortControllerRef.current = null
       discardPendingStreamUpdates(generation)
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
       setIsRequesting(true)
-      const payload = buildChatCompletionPayload(
-        messages,
-        config,
-        parameterEnabled
-      )
-      void sendStreamRequest(
-        payload,
-        (type, chunk) => handleStreamUpdate(generation, type, chunk),
-        () => handleStreamComplete(generation),
-        (error, errorCode) => handleStreamError(generation, error, errorCode)
-      )
+
+      void (async () => {
+        try {
+          const { streamPlaygroundCompletion } =
+            await import('../lib/ai-sdk/playground-client')
+          await streamPlaygroundCompletion({
+            config,
+            format: config.apiFormat,
+            messages,
+            parameterEnabled,
+            signal: abortController.signal,
+            onUpdate: (type, chunk) =>
+              handleStreamUpdate(generation, type, chunk),
+            onComplete: () => handleStreamComplete(generation),
+            onError: (error, errorCode) =>
+              handleStreamError(generation, error, errorCode),
+          })
+        } catch (error) {
+          if (!abortController.signal.aborted) {
+            handleStreamError(
+              generation,
+              error instanceof Error
+                ? error.message
+                : ERROR_MESSAGES.API_REQUEST_ERROR
+            )
+          }
+        } finally {
+          if (requestGenerationRef.current === generation) {
+            abortControllerRef.current = null
+            setIsRequesting(false)
+          }
+        }
+      })()
     },
     [
       config,
       parameterEnabled,
-      sendStreamRequest,
       discardPendingStreamUpdates,
       handleStreamUpdate,
       handleStreamComplete,
@@ -276,26 +294,25 @@ export function useChatHandler({
   // Send non-streaming chat request
   const sendNonStreamingChat = useCallback(
     async (messages: Message[]) => {
-      const payload = buildChatCompletionPayload(
-        messages,
-        config,
-        parameterEnabled
-      )
       const generation = requestGenerationRef.current + 1
       const abortController = new AbortController()
 
       requestGenerationRef.current = generation
-      stopStream()
       discardPendingStreamUpdates(generation)
       abortControllerRef.current?.abort()
       abortControllerRef.current = abortController
 
       try {
         setIsRequesting(true)
-        const response = await sendChatCompletion(
-          payload,
-          abortController.signal
-        )
+        const { generatePlaygroundCompletion } =
+          await import('../lib/ai-sdk/playground-client')
+        const result = await generatePlaygroundCompletion({
+          config,
+          format: config.apiFormat,
+          messages,
+          parameterEnabled,
+          signal: abortController.signal,
+        })
         if (
           abortController.signal.aborted ||
           requestGenerationRef.current !== generation
@@ -303,21 +320,11 @@ export function useChatHandler({
           return
         }
 
-        if (!hasChatCompletionChoice(response)) {
-          handleStreamError(generation, ERROR_MESSAGES.API_REQUEST_ERROR)
-          return
-        }
-
         onMessageUpdate((prev) => {
           if (requestGenerationRef.current !== generation) return prev
-          return updateLastAssistantMessage(prev, (message) => {
-            const updatedMessage = applyChatCompletionResponse(
-              message,
-              response
-            )
-
-            return updatedMessage ?? message
-          })
+          return updateLastAssistantMessage(prev, (message) =>
+            applyCompletionResult(message, result)
+          )
         })
       } catch (error: unknown) {
         if (
@@ -327,7 +334,8 @@ export function useChatHandler({
           return
         }
 
-        const { errorCode, errorMessage } = parseRequestErrorDetails(error)
+        const { message: errorMessage, code: errorCode } =
+          getPlaygroundErrorDetails(error)
         handleStreamError(generation, errorMessage, errorCode)
       } finally {
         if (requestGenerationRef.current === generation) {
@@ -339,7 +347,6 @@ export function useChatHandler({
     [
       config,
       parameterEnabled,
-      stopStream,
       discardPendingStreamUpdates,
       onMessageUpdate,
       handleStreamError,
@@ -365,7 +372,6 @@ export function useChatHandler({
     const idleGeneration = stoppedGeneration + 1
     requestGenerationRef.current = idleGeneration
     discardPendingStreamUpdates(idleGeneration)
-    stopStream()
     abortControllerRef.current?.abort()
     abortControllerRef.current = null
     setIsRequesting(false)
@@ -377,16 +383,11 @@ export function useChatHandler({
           : message
       )
     })
-  }, [
-    stopStream,
-    flushStreamUpdates,
-    discardPendingStreamUpdates,
-    onMessageUpdate,
-  ])
+  }, [flushStreamUpdates, discardPendingStreamUpdates, onMessageUpdate])
 
   return {
     sendChat,
     stopGeneration,
-    isGenerating: isStreaming || isRequesting,
+    isGenerating: isRequesting,
   }
 }

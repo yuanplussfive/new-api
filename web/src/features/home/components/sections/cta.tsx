@@ -17,68 +17,50 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { AnimateInView } from '@/components/animate-in-view'
+import { PublicSection } from '@/components/public-section'
 import { Button } from '@/components/ui/button'
 
-interface CTAProps {
-  className?: string
-  isAuthenticated?: boolean
-}
+const SENERA_REPOSITORY_URL = 'https://github.com/yuanplussfive/senera'
 
-export function CTA(props: CTAProps) {
+export function CTA(props: { isAuthenticated?: boolean }) {
   const { t } = useTranslation()
 
-  if (props.isAuthenticated) {
-    return null
-  }
-
   return (
-    <section className='relative z-10 overflow-hidden px-6 py-24 md:py-32'>
-      {/* Gradient mesh background */}
-      <div
-        aria-hidden
-        className='absolute inset-0 -z-10 opacity-20 dark:opacity-[0.08]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 50% 50% at 30% 50%, oklch(0.7 0.15 250 / 70%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 40% 40% at 70% 40%, oklch(0.65 0.12 200 / 50%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
-      />
-
-      <AnimateInView
-        className='mx-auto max-w-2xl text-center'
-        animation='scale-in'
-      >
-        <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-4xl'>
-          {t('Ready to simplify')}
-          <br />
-          <span className='bg-gradient-to-r from-blue-400 via-violet-400 to-purple-500 bg-clip-text text-transparent'>
-            {t('your AI integration?')}
-          </span>
+    <PublicSection bordered>
+      <div className='flex flex-col items-start gap-5'>
+        <h2 className='text-foreground max-w-xl text-[clamp(1.6rem,2.6vw,2.15rem)] leading-[1.2] font-semibold tracking-[-0.03em] text-balance'>
+          {t('Run senera on your own machine.')}
         </h2>
-        <p className='text-muted-foreground/80 mx-auto mt-5 max-w-md text-sm leading-relaxed md:text-base'>
+        <p className='text-muted-foreground max-w-lg text-[14px] leading-[1.75]'>
           {t(
-            'Deploy your own gateway and start routing requests through your configured upstream services.'
+            'A locally deployed agent runtime. The model produces intent; the host runtime handles authorization, execution and evidence.'
           )}
         </p>
-        <div className='mt-8 flex items-center justify-center gap-3'>
-          <Button className='group rounded-lg' render={<Link to='/sign-up' />}>
-            {t('Get Started')}
-            <ArrowRight className='ml-1 size-3.5 transition-transform duration-200 group-hover:translate-x-0.5' />
-          </Button>
-          <Button
-            variant='outline'
-            className='border-border/50 hover:border-border hover:bg-muted/50 rounded-lg'
-            render={<Link to='/pricing' />}
+        <div className='flex flex-wrap items-center gap-5'>
+          {!props.isAuthenticated && (
+            <Button
+              size='lg'
+              className='bg-success text-success-foreground hover:bg-success/90 h-10 rounded-lg px-4 shadow-none'
+              render={<Link to='/sign-up' />}
+            >
+              {t('Get Started')}
+              <ArrowRight aria-hidden='true' />
+            </Button>
+          )}
+          <a
+            href={SENERA_REPOSITORY_URL}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-[12.5px] transition-colors'
           >
-            {t('View Pricing')}
-          </Button>
+            {t('View the senera repository')}
+            <ArrowUpRight aria-hidden='true' className='size-3' />
+          </a>
         </div>
-      </AnimateInView>
-    </section>
+      </div>
+    </PublicSection>
   )
 }

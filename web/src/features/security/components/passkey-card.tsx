@@ -41,7 +41,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePasskeyManagement } from '@/features/auth/passkey'
 import {
@@ -177,9 +176,10 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
           <div className='space-y-6'>
             <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between xl:flex-col 2xl:flex-row'>
               <div className='flex items-start gap-4'>
-                <IconBadge tone='info' size='sm'>
-                  <KeyRound />
-                </IconBadge>
+                <KeyRound
+                  className='text-content-muted mt-0.5 size-4 shrink-0'
+                  aria-hidden='true'
+                />
                 <div className='space-y-1'>
                   <div className='flex flex-wrap items-center gap-2'>
                     <p className='font-medium'>{t('Passkey Authentication')}</p>

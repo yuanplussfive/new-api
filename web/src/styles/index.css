@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/public-sans';
+
 /* Editorial serif (Lora) backing the `serif` font axis and the Anthropic
  * preset's default typography. See `--font-serif` in theme.css for the
  * full Latin + CJK fallback stack and `theme-presets.css` for the cascade
@@ -28,7 +28,14 @@ For commercial licensing, please contact support@quantumnous.com
 @import '@fontsource-variable/lora';
 
 @import './theme.css';
+@import './harmony-fonts.css';
+@import './product-tokens.css';
 @import './theme-presets.css';
+@import './workspace.css';
+@import './workspace-surfaces.css';
+@import './chat.css';
+@import './wallet.css';
+@import './profile-settings.css';
 
 @layer base {
   :root {
@@ -108,13 +115,25 @@ For commercial licensing, please contact support@quantumnous.com
   }
   html {
     @apply overflow-x-hidden font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   body {
     @apply bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar min-h-svh w-full;
     /* Font is driven by the theme's font axis via `--font-body`
      * (defined in theme.css, swapped by `[data-theme-font='...']` blocks
-     * in theme-presets.css). Defaults to the browser's sans-serif. */
+     * in theme-presets.css). The default stack is the curated Nunito Sans +
+     * CJK stack from product-tokens.css. */
     font-family: var(--font-body);
+    font-feature-settings: 'kern' 1;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 24%, transparent);
+  }
+  /* Display type keeps a consistent optical rhythm across pages. */
+  :is(h1, h2, h3) {
+    letter-spacing: -0.014em;
   }
 
   /* Keep sticky headers stable while primitives lock body scrolling. */
@@ -135,51 +154,6 @@ For commercial licensing, please contact support@quantumnous.com
     textarea {
       font-size: 16px !important;
     }
-  }
-}
-
-/* Vercel Geist-style skeleton shimmer */
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--skeleton-base) 0%,
-    var(--skeleton-base) 33%,
-    var(--skeleton-highlight) 50%,
-    var(--skeleton-base) 67%,
-    var(--skeleton-base) 100%
-  );
-  background-size: 300% 100%;
-  animation: skeleton-shimmer 1.8s ease-in-out infinite;
-}
-
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: -100% 50%;
-  }
-}
-
-/* Override auto-skeleton-react inline styles with Vercel shimmer */
-.auto-skeleton-fade [class^='skeleton-'] {
-  background: linear-gradient(
-    90deg,
-    var(--skeleton-base) 0%,
-    var(--skeleton-base) 33%,
-    var(--skeleton-highlight) 50%,
-    var(--skeleton-base) 67%,
-    var(--skeleton-base) 100%
-  ) !important;
-  background-size: 300% 100% !important;
-  animation: skeleton-shimmer 1.8s ease-in-out infinite !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-shimmer,
-  .auto-skeleton-fade [class^='skeleton-'] {
-    animation: none !important;
-    background: var(--skeleton-base) !important;
   }
 }
 
@@ -565,17 +539,6 @@ For commercial licensing, please contact support@quantumnous.com
       box-shadow 150ms ease;
   }
 
-  @media (min-width: 641px) {
-    [data-slot='card']:not([data-card-hover='false']):hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgb(0 0 0 / 0.06);
-    }
-
-    .dark [data-slot='card']:not([data-card-hover='false']):hover {
-      box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
-    }
-  }
-
   button:not(:disabled):active,
   [role='button']:not(:disabled):active {
     transform: scale(0.98);
@@ -583,52 +546,6 @@ For commercial licensing, please contact support@quantumnous.com
 
   [data-slot='table'] tr {
     transition: background-color 120ms ease;
-  }
-
-  /* Only fill the entrance delay; completed animations must release transform/opacity. */
-  [data-slot='table'] tbody tr {
-    animation: tableRowEnter 0.2s cubic-bezier(0.33, 1, 0.68, 1) backwards;
-  }
-  [data-slot='table'] tbody tr:nth-child(2) {
-    animation-delay: 25ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(3) {
-    animation-delay: 50ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(4) {
-    animation-delay: 75ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(5) {
-    animation-delay: 100ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(6) {
-    animation-delay: 125ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(7) {
-    animation-delay: 150ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(8) {
-    animation-delay: 175ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(9) {
-    animation-delay: 200ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(10) {
-    animation-delay: 225ms;
-  }
-  [data-slot='table'] tbody tr:nth-child(n + 11) {
-    animation-delay: 250ms;
-  }
-}
-
-@keyframes tableRowEnter {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -744,4 +661,72 @@ For commercial licensing, please contact support@quantumnous.com
   .auto-group-flow-border {
     display: none;
   }
+}
+
+/* Square corners are the house style: rectangular frames, controls and
+ * popovers never round, whatever utility they carry. Circles (avatars, status
+ * dots, pills) opt in with `rounded-full` and are left alone. Unlayered on
+ * purpose so it wins over Tailwind's radius utilities. Chat surfaces
+ * (`.chat-surface`) mirror the reference chat product and keep their radii. */
+[class*='rounded-']:not([class*='rounded-full']):not(.chat-surface *):not(
+    .chat-menu
+  ):not(.chat-menu *):not(.wallet-surface *):not(.wallet-surface) {
+  border-radius: 0;
+}
+
+/* Security page: components keep their structure, the card chrome is dropped.
+ * Unlayered on purpose so it wins over Tailwind utilities. */
+.security-flat [data-slot='card'],
+.security-flat [data-slot='titled-card'] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.security-flat [data-slot='card-header'],
+.security-flat [data-slot='card-content'],
+.security-flat [data-slot='card-footer'] {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.security-flat [data-slot='card-header'] {
+  border-bottom-color: var(--line-subtle, var(--border));
+}
+
+/* Security page typography: one section-title size instead of card titles. */
+.security-flat [data-slot='card-title'] {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.security-flat [data-slot='card-description'] {
+  font-size: 11.5px;
+}
+
+/* Security cards: stack header actions under the title on narrow screens. */
+@media (max-width: 639px) {
+  .security-flat [data-slot='card-header'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .security-flat [data-slot='card-action'] {
+    grid-column: 1;
+    grid-row: 3;
+    justify-content: flex-start;
+    padding-top: 0.5rem;
+  }
+}
+
+/* Profile sections use the same section-title scale as wallet and security. */
+.profile-flat [data-slot='titled-card'] [data-slot='card-title'] {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.profile-flat [data-slot='titled-card'] [data-slot='card-description'] {
+  font-size: 11.5px;
 }

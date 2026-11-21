@@ -63,6 +63,7 @@ export function LoginSessionsCard() {
   const queryClient = useQueryClient()
   const [revokeTarget, setRevokeTarget] = useState<LoginSession | null>(null)
   const [confirmOthers, setConfirmOthers] = useState(false)
+  const [showAllSessions, setShowAllSessions] = useState(false)
 
   const sessionsQuery = useQuery({
     queryKey: sessionQueryKey,
@@ -160,14 +161,28 @@ export function LoginSessionsCard() {
       </Empty>
     )
   } else {
+    const visibleSessions = showAllSessions ? sessions : sessions.slice(0, 5)
     sessionsContent = (
       <div className='flex flex-col'>
-        {sessions.map((session, index) => (
+        {visibleSessions.map((session, index) => (
           <div key={session.sid}>
             {index > 0 && <Separator />}
             <LoginSessionItem session={session} onRevoke={setRevokeTarget} />
           </div>
         ))}
+        {sessions.length > 5 && (
+          <Button
+            type='button'
+            variant='ghost'
+            size='sm'
+            className='text-content-muted mt-1 h-8 w-full justify-center text-[11.5px] font-normal'
+            onClick={() => setShowAllSessions((v) => !v)}
+          >
+            {showAllSessions
+              ? t('Show fewer')
+              : t('Show all {{count}} sessions', { count: sessions.length })}
+          </Button>
+        )}
       </div>
     )
   }

@@ -35,9 +35,10 @@ import {
 } from './response-fade'
 import { renderChildren, renderFootnotes } from './response-renderer'
 import type { ResponseProps } from './response-types'
+import { useThrottleMarkdownRender } from './use-throttle-markdown-render'
 
 const DEFAULT_PARSER_ID = 'new-api-response'
-const MAX_PARSED_MARKDOWN_CHARS = 20_000
+const MAX_PARSED_MARKDOWN_CHARS = 100_000
 type MarkdownInstance = ReturnType<typeof getMarkdown>
 
 const markdownByParserId = new Map<string, MarkdownInstance>()
@@ -53,12 +54,14 @@ function getCachedMarkdown(parserId: string): MarkdownInstance {
 }
 
 export const Response = memo((props: ResponseProps) => {
-  const content = getMarkdownContent(props.children)
+  const rawContent = getMarkdownContent(props.children)
   const isFinal = props.final ?? true
+  const content = useThrottleMarkdownRender(rawContent, !isFinal)
   const shouldAnimate = !isFinal
   const parserId = props.parserId ?? DEFAULT_PARSER_ID
   const markdown = getCachedMarkdown(parserId)
-  const shouldParseMarkdown = content.length <= MAX_PARSED_MARKDOWN_CHARS
+  const shouldParseMarkdown =
+    content.length <= (props.maxParsedChars ?? MAX_PARSED_MARKDOWN_CHARS)
   const fadeStateRef = useRef<FadeState | null>(null)
   if (fadeStateRef.current == null) {
     fadeStateRef.current = createFadeState()

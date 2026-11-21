@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { t } from 'i18next'
 
 import { ERROR_MESSAGES, MESSAGE_ROLES, MESSAGE_STATUS } from '../../constants'
-import type { ChatCompletionResponse, Message } from '../../types'
+import type { Message } from '../../types'
 import { parseThinkTags } from './message-reasoning-utils'
 import {
   completeAssistantTiming,
@@ -37,7 +37,7 @@ import {
  * Separates <think> reasoning from visible content in real-time.
  * Note: versions[0].content keeps the full raw content with tags during streaming.
  */
-export function processStreamingContent(
+function processStreamingContent(
   message: Message,
   contentChunk?: string
 ): Message {
@@ -169,45 +169,24 @@ export function isAssistantMessagePending(message: Message): boolean {
   )
 }
 
-export function isPendingAssistantMessage(message?: Message): boolean {
+function isPendingAssistantMessage(message?: Message): boolean {
   return Boolean(
     message?.from === MESSAGE_ROLES.ASSISTANT &&
     isAssistantMessagePending(message)
   )
 }
 
-type ChatCompletionChoice = ChatCompletionResponse['choices'][number]
-
-export function hasChatCompletionChoice(
-  response: ChatCompletionResponse
-): boolean {
-  return Boolean(response.choices?.[0])
-}
-
-export function applyChatCompletionChoice(
+export function applyCompletionResult(
   message: Message,
-  choice: ChatCompletionChoice
+  result: { content: string; reasoning?: string }
 ): Message {
   return completeAssistantTiming({
     ...finalizeMessage(
-      updateCurrentVersionContent(message, choice.message?.content || ''),
-      choice.message?.reasoning_content ?? choice.message?.reasoning
+      updateCurrentVersionContent(message, result.content),
+      result.reasoning
     ),
     status: MESSAGE_STATUS.COMPLETE,
   })
-}
-
-export function applyChatCompletionResponse(
-  message: Message,
-  response: ChatCompletionResponse
-): Message | null {
-  const choice = response.choices?.[0]
-
-  if (!choice) {
-    return null
-  }
-
-  return applyChatCompletionChoice(message, choice)
 }
 
 /**

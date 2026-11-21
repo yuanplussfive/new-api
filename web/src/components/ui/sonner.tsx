@@ -42,62 +42,70 @@ const Toaster = (props: ToasterProps) => {
           <HugeiconsIcon
             icon={CheckmarkCircle02Icon}
             strokeWidth={2}
-            className='size-4'
+            className='text-success size-4'
           />
         ),
         info: (
           <HugeiconsIcon
             icon={InformationCircleIcon}
             strokeWidth={2}
-            className='size-4'
+            className='text-content-muted size-4'
           />
         ),
         warning: (
           <HugeiconsIcon
             icon={Alert02Icon}
             strokeWidth={2}
-            className='size-4'
+            className='text-warning size-4'
           />
         ),
         error: (
           <HugeiconsIcon
             icon={MultiplicationSignCircleIcon}
             strokeWidth={2}
-            className='size-4'
+            className='text-destructive size-4'
           />
         ),
         loading: (
           <HugeiconsIcon
             icon={Loading03Icon}
             strokeWidth={2}
-            className='size-4 animate-spin'
+            className='text-content-muted size-4 animate-spin'
           />
         ),
       }}
+      toastOptions={{
+        classNames: {
+          toast: 'items-start gap-2.5 px-3 py-2.5 backdrop-blur-md',
+          title: 'text-[12.5px] leading-4 font-medium',
+          description: 'text-[11.5px] leading-4 text-content-secondary',
+          icon: 'mt-0.5',
+          closeButton:
+            'border-line-subtle bg-surface-raised text-content-muted',
+        },
+      }}
       style={
         {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
+          '--normal-bg':
+            'color-mix(in srgb, var(--surface-raised) 92%, transparent)',
+          '--normal-text': 'var(--content-primary)',
+          '--normal-border': 'transparent',
           '--success-bg':
-            'color-mix(in oklch, var(--success) 16%, var(--popover))',
-          '--success-border':
-            'color-mix(in oklch, var(--success) 35%, var(--border))',
-          '--success-text': 'var(--success)',
-          '--info-bg': 'color-mix(in oklch, var(--info) 16%, var(--popover))',
-          '--info-border':
-            'color-mix(in oklch, var(--info) 35%, var(--border))',
-          '--info-text': 'var(--info)',
+            'color-mix(in srgb, var(--surface-raised) 92%, transparent)',
+          '--success-border': 'transparent',
+          '--success-text': 'var(--content-primary)',
+          '--info-bg':
+            'color-mix(in srgb, var(--surface-raised) 92%, transparent)',
+          '--info-border': 'transparent',
+          '--info-text': 'var(--content-primary)',
           '--warning-bg':
-            'color-mix(in oklch, var(--warning) 18%, var(--popover))',
-          '--warning-border':
-            'color-mix(in oklch, var(--warning) 38%, var(--border))',
-          '--warning-text': 'var(--warning)',
+            'color-mix(in srgb, var(--surface-raised) 92%, transparent)',
+          '--warning-border': 'transparent',
+          '--warning-text': 'var(--content-primary)',
           '--error-bg':
-            'color-mix(in oklch, var(--destructive) 16%, var(--popover))',
-          '--error-border':
-            'color-mix(in oklch, var(--destructive) 35%, var(--border))',
-          '--error-text': 'var(--destructive)',
+            'color-mix(in srgb, var(--surface-raised) 92%, transparent)',
+          '--error-border': 'transparent',
+          '--error-text': 'var(--content-primary)',
           '--border-radius': 'var(--radius)',
         } as React.CSSProperties
       }

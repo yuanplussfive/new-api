@@ -16,22 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 
 type HeaderProps = React.HTMLAttributes<HTMLElement>
 
 export function Header({ className, children, ...props }: HeaderProps) {
+  const { state } = useSidebar()
   return (
     <header
       className={cn(
-        'sticky top-0 z-40 h-[var(--app-header-height,3rem)] w-full shrink-0 bg-transparent',
+        'workspace-header z-40 h-[52px] w-full shrink-0',
         className
       )}
       {...props}
     >
-      <div className='flex h-full items-center gap-1.5 px-2 sm:gap-2 sm:px-3'>
-        <SidebarTrigger variant='ghost' className='size-8' />
+      <div className='flex h-full items-center gap-2 px-4 sm:px-6'>
+        <SidebarTrigger variant='ghost' className={cn('size-8', state === 'expanded' && 'md:hidden')} />
         {children}
       </div>
     </header>

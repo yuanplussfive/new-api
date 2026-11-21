@@ -193,7 +193,7 @@ export interface DashboardFilters {
   username?: string
 }
 
-export type ConsumptionDistributionChartType = 'bar' | 'area'
+export type ConsumptionDistributionChartType = 'bar' | 'area' | 'heatmap'
 
 export type ModelAnalyticsChartTab = 'trend' | 'proportion' | 'top'
 

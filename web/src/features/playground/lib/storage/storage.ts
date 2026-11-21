@@ -19,7 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 import { useAuthStore } from '@/stores/auth-store'
 
 import { MESSAGE_STATUS, STORAGE_KEYS } from '../../constants'
-import type { PlaygroundConfig, ParameterEnabled, Message } from '../../types'
+import type {
+  PlaygroundConfig,
+  ParameterEnabled,
+  Message,
+  ThinkingLevel,
+} from '../../types'
 import {
   finalizeMessage,
   isAssistantMessagePending,
@@ -28,14 +33,29 @@ import {
 import { completeAssistantTiming } from '../message/message-timing-utils'
 import { hasMessageContent } from '../message/message-utils'
 import {
+  clearArchivedChats,
+  deleteArchivedConversation,
+  putArchivedConversation,
+  readArchivedConversations,
+  readMetaValue,
+  writeMetaValue,
+} from './chat-database'
+import {
+  MAX_CONVERSATION_TITLE_LENGTH,
   MAX_LOADED_MESSAGE_CHARS,
   MAX_LOADED_MESSAGES_CHARS,
+  MAX_STORED_CONVERSATIONS,
+  MAX_STORED_CONVERSATIONS_BYTES,
   MAX_STORED_MESSAGES,
   MAX_STORED_MESSAGES_BYTES,
   STORAGE_VERSION,
+  activeConversationSchema,
+  conversationsSchema,
   messagesSchema,
   parameterEnabledSchema,
   playgroundConfigSchema,
+  thinkingOverridesSchema,
+  type StoredConversationInput,
 } from './storage-schema'
 
 type StoredEnvelope<T> = {
@@ -387,16 +407,328 @@ export function loadMessages(): Message[] | null {
 }
 
 /**
+ * Remove attachment data URLs before writing to localStorage.
+ */
+function toStoredMessages(
+  messages: Message[],
+  options: { includeAttachments?: boolean } = {}
+): Message[] {
+  const trimmed = trimMessages(messages)
+  const persisted = trimmed.map((message) => {
+    const copy = { ...message }
+    // localStorage cannot hold image data URLs, IndexedDB can.
+    if (!options.includeAttachments) {
+      delete copy.attachments
+    }
+    return copy
+  })
+  return messagesSchema.parse(persisted) as Message[]
+}
+
+function stripConversationAttachments(
+  conversations: StoredConversationInput[]
+): StoredConversationInput[] {
+  return conversations.map((conversation) => ({
+    ...conversation,
+    messages: conversation.messages.map((message) => {
+      const copy: Record<string, unknown> = { ...message }
+      delete copy.attachments
+      return copy as StoredConversationInput['messages'][number]
+    }),
+  }))
+}
+
+/**
+ * Derive a short conversation title from its first user message.
+ */
+function getConversationTitle(messages: Message[]): string {
+  const firstUserMessage = messages.find((message) => message.from === 'user')
+  if (!firstUserMessage) return ''
+
+  const firstVersion =
+    firstUserMessage.versions[firstUserMessage.versionIndex ?? 0]
+  const text = (firstVersion?.content ?? '')
+    .replaceAll(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_CONVERSATION_TITLE_LENGTH)
+
+  return text
+}
+
+/**
+ * Load the locally archived conversations, newest first.
+ */
+export function loadConversations(): StoredConversationInput[] {
+  try {
+    const saved = readStoredValue(STORAGE_KEYS.CONVERSATIONS)
+    if (!saved) return []
+
+    const parsed = conversationsSchema.parse(
+      unwrapStoredValue(saved)
+    ) as StoredConversationInput[]
+    return parsed.sort((left, right) => right.updatedAt - left.updatedAt)
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to load conversations:', error)
+  }
+  return []
+}
+
+/**
+ * Persist the archived conversations list.
+ */
+export function saveConversations(
+  conversations: StoredConversationInput[]
+): void {
+  try {
+    const parsed = conversationsSchema.parse(
+      conversations.slice(0, MAX_STORED_CONVERSATIONS)
+    )
+    // Keep the archive inside the localStorage quota: drop the oldest chats
+    // instead of failing the whole write.
+    let bounded = parsed
+    while (
+      bounded.length > 1 &&
+      JSON.stringify(bounded).length > MAX_STORED_CONVERSATIONS_BYTES
+    ) {
+      bounded = bounded.slice(0, -1)
+    }
+    writeStoredValue(STORAGE_KEYS.CONVERSATIONS, bounded)
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to save conversations:', error)
+  }
+}
+
+/**
+ * Upsert the active conversation into the archive.
+ */
+export function saveConversationSnapshot(
+  conversation: Pick<StoredConversationInput, 'id' | 'messages'>
+): StoredConversationInput[] {
+  const storedMessages = toStoredMessages(conversation.messages)
+  const snapshot: StoredConversationInput = {
+    id: conversation.id,
+    title: getConversationTitle(storedMessages),
+    messages: storedMessages,
+    updatedAt: Date.now(),
+  }
+  const others = loadConversations().filter(
+    (item) => item.id !== conversation.id
+  )
+  const next = [snapshot, ...others].slice(0, MAX_STORED_CONVERSATIONS)
+  saveConversations(next)
+  return next
+}
+
+export function deleteConversation(id: string): StoredConversationInput[] {
+  const next = loadConversations().filter((item) => item.id !== id)
+  saveConversations(next)
+  return next
+}
+
+export function loadActiveConversationId(): string | null {
+  try {
+    const saved = readStoredValue(STORAGE_KEYS.ACTIVE_CONVERSATION)
+    if (!saved) return null
+    return activeConversationSchema.parse(unwrapStoredValue(saved))
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to load active conversation:', error)
+  }
+  return null
+}
+
+/**
+ * Remember which conversation is open.
+ */
+export function saveActiveConversationId(id: string | null): void {
+  try {
+    if (id === null) {
+      const key = getUserStorageKey(STORAGE_KEYS.ACTIVE_CONVERSATION)
+      if (key) localStorage.removeItem(key)
+      return
+    }
+    writeStoredValue(
+      STORAGE_KEYS.ACTIVE_CONVERSATION,
+      activeConversationSchema.parse(id)
+    )
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to save active conversation:', error)
+  }
+}
+
+export type ThinkingOverrides = Record<string, ThinkingLevel[]>
+
+/** Per-model thinking level overrides chosen by the user. */
+export function loadThinkingOverrides(): ThinkingOverrides {
+  try {
+    const saved = readStoredValue(STORAGE_KEYS.THINKING_OVERRIDES)
+    if (!saved) return {}
+    return thinkingOverridesSchema.parse(unwrapStoredValue(saved))
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to load thinking overrides:', error)
+  }
+  return {}
+}
+
+export function saveThinkingOverrides(overrides: ThinkingOverrides): void {
+  try {
+    writeStoredValue(
+      STORAGE_KEYS.THINKING_OVERRIDES,
+      thinkingOverridesSchema.parse(overrides)
+    )
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to save thinking overrides:', error)
+  }
+}
+
+/**
  * Save messages to localStorage
  */
 export function saveMessages(messages: Message[]): void {
   try {
-    const trimmed = trimMessages(messages)
-    const parsed = messagesSchema.parse(trimmed) as Message[]
-    writeStoredValue(STORAGE_KEYS.MESSAGES, parsed)
+    writeStoredValue(STORAGE_KEYS.MESSAGES, toStoredMessages(messages))
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to save messages:', error)
+  }
+}
+
+const ACTIVE_CONVERSATION_META_KEY = 'active'
+
+/**
+ * Read the archive from IndexedDB, migrating any legacy localStorage archive
+ * the first time it runs. Falls back to localStorage when IndexedDB is absent
+ * (private windows with storage disabled).
+ */
+export async function loadConversationsAsync(): Promise<
+  StoredConversationInput[]
+> {
+  const fromDatabase = await readArchivedConversations()
+  if (fromDatabase === null) {
+    return loadConversations()
+  }
+
+  if (fromDatabase.length > 0) {
+    return fromDatabase
+  }
+
+  const legacy = loadConversations()
+  for (const conversation of legacy) {
+    await putArchivedConversation(conversation)
+  }
+  return legacy
+}
+
+/**
+ * Upsert a conversation into IndexedDB (attachments included), pruning the
+ * oldest entries past the archive limit.
+ */
+export async function saveConversationSnapshotAsync(
+  conversation: Pick<StoredConversationInput, 'id' | 'messages'>
+): Promise<StoredConversationInput[]> {
+  const storedMessages = toStoredMessages(conversation.messages, {
+    includeAttachments: true,
+  })
+  const snapshot: StoredConversationInput = {
+    id: conversation.id,
+    title: getConversationTitle(storedMessages),
+    messages: storedMessages,
+    updatedAt: Date.now(),
+  }
+  const existing = await loadConversationsAsync()
+  const others = existing.filter((item) => item.id !== conversation.id)
+  const next = [snapshot, ...others].slice(0, MAX_STORED_CONVERSATIONS)
+  const removed = [snapshot, ...others].slice(MAX_STORED_CONVERSATIONS)
+
+  const saved = await putArchivedConversation(snapshot)
+  if (!saved) {
+    saveConversations(stripConversationAttachments(next))
+    return next
+  }
+
+  for (const item of removed) {
+    await deleteArchivedConversation(item.id)
+  }
+  return next
+}
+
+export async function renameConversationAsync(
+  id: string,
+  title: string
+): Promise<StoredConversationInput[]> {
+  const next = (await loadConversationsAsync()).map((item) =>
+    item.id === id
+      ? { ...item, title: title.trim().slice(0, MAX_CONVERSATION_TITLE_LENGTH) }
+      : item
+  )
+  const target = next.find((item) => item.id === id)
+  if (target) {
+    const saved = await putArchivedConversation(target)
+    if (!saved) {
+      saveConversations(stripConversationAttachments(next))
+    }
+  }
+  return next
+}
+
+export async function deleteConversationAsync(
+  id: string
+): Promise<StoredConversationInput[]> {
+  const current = await loadConversationsAsync()
+  const next = current.filter((item) => item.id !== id)
+  const removed = await deleteArchivedConversation(id)
+  if (!removed) {
+    saveConversations(stripConversationAttachments(next))
+  }
+  return next
+}
+
+/**
+ * Replace the whole archive (history import). IndexedDB is cleared first so
+ * conversations missing from the archive do not survive the import.
+ */
+export async function replaceConversationArchive(
+  conversations: StoredConversationInput[]
+): Promise<boolean> {
+  const bounded = [...conversations]
+    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .slice(0, MAX_STORED_CONVERSATIONS)
+
+  const cleared = await clearArchivedChats()
+  if (!cleared) {
+    saveConversations(stripConversationAttachments(bounded))
+    return false
+  }
+
+  for (const conversation of bounded) {
+    await putArchivedConversation(conversation)
+  }
+  return true
+}
+
+export async function loadActiveConversationIdAsync(): Promise<string | null> {
+  const fromDatabase = await readMetaValue(ACTIVE_CONVERSATION_META_KEY)
+  if (fromDatabase !== null) {
+    try {
+      return activeConversationSchema.parse(fromDatabase)
+    } catch {
+      return null
+    }
+  }
+  return loadActiveConversationId()
+}
+
+export async function saveActiveConversationIdAsync(
+  id: string | null
+): Promise<void> {
+  const saved = await writeMetaValue(ACTIVE_CONVERSATION_META_KEY, id)
+  if (!saved) {
+    saveActiveConversationId(id)
   }
 }
 
@@ -409,6 +741,7 @@ export function clearPlaygroundData(): void {
       const key = getUserStorageKey(baseKey)
       if (key) localStorage.removeItem(key)
     }
+    void clearArchivedChats()
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to clear playground data:', error)

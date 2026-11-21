@@ -44,8 +44,21 @@ export const API_ENDPOINTS = {
 export const DEFAULT_GROUP = 'default' as const
 
 // Default configuration
+export const PLAYGROUND_API_FORMATS: {
+  value: 'chat' | 'responses' | 'claude' | 'gemini'
+  label: string
+}[] = [
+  { value: 'chat', label: 'Chat Completions' },
+  { value: 'responses', label: 'Responses' },
+  { value: 'claude', label: 'Claude Messages' },
+  { value: 'gemini', label: 'Gemini generateContent' },
+]
+
 export const DEFAULT_CONFIG: PlaygroundConfig = {
   model: 'gpt-4o',
+  apiFormat: 'chat',
+  apiFormatByModel: {},
+  modelByGroup: {},
   group: DEFAULT_GROUP,
   temperature: 0.7,
   top_p: 1,
@@ -54,6 +67,7 @@ export const DEFAULT_CONFIG: PlaygroundConfig = {
   presence_penalty: 0,
   seed: null,
   stream: true,
+  thinking: 'off',
 }
 
 export const DEFAULT_PARAMETER_ENABLED: ParameterEnabled = {
@@ -70,6 +84,9 @@ export const STORAGE_KEYS = {
   CONFIG: 'playground_config',
   MESSAGES: 'playground_messages',
   PARAMETER_ENABLED: 'playground_parameter_enabled',
+  CONVERSATIONS: 'playground_conversations',
+  ACTIVE_CONVERSATION: 'playground_active_conversation',
+  THINKING_OVERRIDES: 'playground_thinking_overrides',
 } as const
 
 // Error messages

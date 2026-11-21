@@ -30,6 +30,8 @@ type PublicLayoutProps = {
   showNotifications?: boolean
   logo?: React.ReactNode
   siteName?: string
+  /** Let the header float over a dark hero on this page. */
+  headerOverlay?: boolean
 }
 
 export function PublicLayout(props: PublicLayoutProps) {
@@ -43,6 +45,7 @@ export function PublicLayout(props: PublicLayoutProps) {
         showNotifications={props.showNotifications}
         logo={props.logo}
         siteName={props.siteName}
+        overlay={props.headerOverlay}
         {...props.headerProps}
       />
 

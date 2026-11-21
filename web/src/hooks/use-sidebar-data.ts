@@ -16,29 +16,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import {
-  Activity,
-  Box,
-  ClipboardList,
-  CreditCard,
-  FileText,
-  FlaskConical,
-  Key,
-  LayoutDashboard,
-  ListTodo,
-  MessageSquare,
-  PlugZap,
-  Radio,
-  ServerCog,
-  Settings,
-  ShieldCheck,
-  Ticket,
-  User,
-  Users,
-  Wallet,
-} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  NavApiKeysIcon,
+  NavAuditLogsIcon,
+  NavChannelsIcon,
+  NavDashboardIcon,
+  NavModelsIcon,
+  NavOverviewIcon,
+  NavPlaygroundIcon,
+  NavProfileIcon,
+  NavRedemptionIcon,
+  NavSecurityIcon,
+  NavSubscriptionsIcon,
+  NavSystemInfoIcon,
+  NavSystemSettingsIcon,
+  NavTaskLogsIcon,
+  NavTaskPluginsIcon,
+  NavUsageLogsIcon,
+  NavUsersIcon,
+  NavWalletIcon,
+} from '@/components/icons/nav-icons'
 import type { SidebarBadges, SidebarData } from '@/components/layout/types'
 import { ROLE } from '@/lib/roles'
 
@@ -54,56 +53,45 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
   return {
     navGroups: [
       {
-        id: 'chat',
-        title: t('Chat'),
-        items: [
-          {
-            title: t('Playground'),
-            url: '/playground',
-            icon: FlaskConical,
-          },
-          {
-            title: t('Chat'),
-            icon: MessageSquare,
-            type: 'chat-presets',
-          },
-        ],
-      },
-      {
         id: 'general',
         title: t('General'),
         items: [
           {
+            title: t('Chat plaza'),
+            url: '/playground',
+            icon: NavPlaygroundIcon,
+          },
+          {
             title: t('Overview'),
             url: '/dashboard/overview',
-            icon: Activity,
+            icon: NavOverviewIcon,
           },
           {
             title: t('Dashboard'),
             url: '/dashboard/models',
-            icon: LayoutDashboard,
+            icon: NavDashboardIcon,
           },
           {
             title: t('API Keys'),
             url: '/keys',
-            icon: Key,
+            icon: NavApiKeysIcon,
           },
           {
             title: t('Usage Logs'),
             url: '/usage-logs/common',
-            icon: FileText,
+            icon: NavUsageLogsIcon,
           },
           {
             title: t('Audit Logs'),
             url: '/usage-logs/audit',
-            icon: ClipboardList,
+            icon: NavAuditLogsIcon,
           },
           {
             title: t('Task Logs'),
             url: '/usage-logs/task',
             activeUrls: ['/usage-logs/drawing'],
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
-            icon: ListTodo,
+            icon: NavTaskLogsIcon,
           },
         ],
       },
@@ -114,17 +102,17 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
           {
             title: t('Wallet'),
             url: '/wallet',
-            icon: Wallet,
+            icon: NavWalletIcon,
           },
           {
             title: t('Profile'),
             url: '/profile',
-            icon: User,
+            icon: NavProfileIcon,
           },
           {
             title: t('Security & Access'),
             url: '/security',
-            icon: ShieldCheck,
+            icon: NavSecurityIcon,
           },
         ],
       },
@@ -135,45 +123,45 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
           {
             title: t('Channels'),
             url: '/channels',
-            icon: Radio,
+            icon: NavChannelsIcon,
           },
           {
             title: t('Models'),
             url: '/models/metadata',
-            icon: Box,
+            icon: NavModelsIcon,
           },
           {
             title: t('Users'),
             url: '/users',
-            icon: Users,
+            icon: NavUsersIcon,
           },
           {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
-            icon: Ticket,
+            icon: NavRedemptionIcon,
           },
           {
             title: t('Subscriptions'),
             url: '/subscriptions',
-            icon: CreditCard,
+            icon: NavSubscriptionsIcon,
           },
           {
             title: t('System Info'),
             url: '/system-info',
-            icon: ServerCog,
+            icon: NavSystemInfoIcon,
             requiredRole: ROLE.SUPER_ADMIN,
           },
           {
             title: t('Task Plugins'),
             url: '/task-plugins',
-            icon: PlugZap,
+            icon: NavTaskPluginsIcon,
             requiredRole: ROLE.SUPER_ADMIN,
           },
           {
             title: t('System Settings'),
             url: '/system-settings/site',
             activeUrls: ['/system-settings'],
-            icon: Settings,
+            icon: NavSystemSettingsIcon,
             requiredRole: ROLE.SUPER_ADMIN,
             // Model pricing lives in System Settings.
             badge: badges.modelPricing,

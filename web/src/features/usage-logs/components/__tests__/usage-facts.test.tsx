@@ -64,7 +64,12 @@ function makeLog(other: LogOtherData): UsageLog {
   }
 }
 
-function renderDetails(other: LogOtherData, promptTokens = 0): QueryClient {
+function renderDetails(
+  other: LogOtherData,
+  promptTokens = 0,
+  useTime = 0,
+  isStream = false
+): QueryClient {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -79,7 +84,12 @@ function renderDetails(other: LogOtherData, promptTokens = 0): QueryClient {
   render(
     <QueryClientProvider client={queryClient}>
       <DetailsDialog
-        log={{ ...makeLog(other), prompt_tokens: promptTokens }}
+        log={{
+          ...makeLog(other),
+          prompt_tokens: promptTokens,
+          use_time: useTime,
+          is_stream: isStream,
+        }}
         isAdmin={false}
         isRoot={false}
         open
@@ -274,4 +284,53 @@ describe('usage facts billing details', () => {
     expect(screen.queryByText('seconds')).toBeNull()
     expect(screen.getByText('Total Cost')).toBeInTheDocument()
   })
+})
+
+test('shows the reasoning effort recorded for the request', () => {
+  const queryClient = renderDetails({ reasoning_effort: 'high' })
+  expect(rowValue('Reasoning Effort')).toBe('high')
+  queryClient.clear()
+})
+
+test('uses observed versioned stream phases and the precise total in log details', () => {
+  const queryClient = renderDetails(
+    {
+      timing: {
+        version: 2,
+        total_ms: 600,
+        first_response_ms: 29,
+        first_content_ms: 350,
+        thinking_ms: 271,
+        tool_generation_ms: 50,
+        tool_calls: 1,
+        content_ms: 250,
+        segments: [
+          { phase: 'waiting', start_ms: 0, duration_ms: 29 },
+          { phase: 'thinking', start_ms: 29, duration_ms: 271 },
+          { phase: 'tool', start_ms: 300, duration_ms: 50 },
+          { phase: 'content', start_ms: 350, duration_ms: 250 },
+        ],
+      },
+    },
+    0,
+    1,
+    true
+  )
+  const timeline = within(screen.getByRole('group', { name: 'Request timing' }))
+  expect(timeline.getByText('Thinking')).toBeVisible()
+  expect(timeline.getByText('Tool-call generation')).toBeVisible()
+  expect(
+    timeline.getByText('First response').nextElementSibling
+  ).toHaveTextContent('29ms')
+  expect(timeline.getByText('First text').nextElementSibling).toHaveTextContent(
+    '350ms'
+  )
+  expect(
+    screen
+      .getAllByText('Duration')
+      .every((label) => label.nextElementSibling?.textContent === '600ms')
+  ).toBe(true)
+  expect(screen.queryByText('DNS')).toBeNull()
+  expect(screen.queryByText('1s')).toBeNull()
+  queryClient.clear()
 })

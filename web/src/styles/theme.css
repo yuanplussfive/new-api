@@ -20,7 +20,13 @@ For commercial licensing, please contact support@quantumnous.com
 
 @theme inline {
   --font-sans: var(--font-ui-sans);
-  --font-public-sans: 'Public Sans Variable', 'Public Sans', sans-serif;
+  --font-public-sans:
+    'Nunito Sans Variable', 'Nunito Sans', 'HarmonyOS Sans SC', 'PingFang SC',
+    'Microsoft YaHei UI', 'Noto Sans SC', sans-serif;
+  /* Code and identifiers: JetBrains Mono is bundled in public/fonts. */
+  --font-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas,
+    'Liberation Mono', monospace;
   /* Editorial serif token — the body face used by the `serif` font axis
    * and by presets that opt in (currently Anthropic). Lora carries only
    * Latin glyphs, so the stack walks through CJK serifs (Noto / Source Han
@@ -76,6 +82,19 @@ For commercial licensing, please contact support@quantumnous.com
   --color-overview-accent-1: var(--overview-accent-1);
   --color-overview-accent-2: var(--overview-accent-2);
   --color-overview-accent-3: var(--overview-accent-3);
+  /* Semantic surfaces consumed by shell, panels and controls. */
+  --color-surface-canvas: var(--surface-canvas);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-hover: var(--surface-hover);
+  --color-line: var(--line);
+  --color-line-subtle: var(--line-subtle);
+  --color-line-strong: var(--line-strong);
+  --color-content-strong: var(--content-strong);
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-muted: var(--content-muted);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -100,7 +119,7 @@ For commercial licensing, please contact support@quantumnous.com
   /* Static build-channel fallback consumed when JS hasn't booted yet. */
   --app-rev: '2k6e8r7p';
   /* Auto starts with the browser font, including before JS applies the
-   * saved preference. Explicit Sans selects Public Sans in theme-presets.css. */
+   * saved preference. Explicit Sans selects Nunito Sans in theme-presets.css. */
   --font-ui-sans: sans-serif;
   --font-body: var(--font-ui-sans);
   --background: oklch(1 0 0);
@@ -176,6 +195,35 @@ For commercial licensing, please contact support@quantumnous.com
     var(--foreground) 16%,
     var(--background)
   );
+
+  /* ── Semantic bridge ──────────────────────────────────────────────────
+   * Components read these names, so a preset only has to restate the
+   * palette (`--background`, `--card`, `--border`, `--muted`). Keeping the
+   * bridge derived means presets stay compatible without per-preset work.
+   *
+   * canvas  → page plane
+   * panel   → the surface content actually lives on
+   * raised  → menus, dialogs, popovers
+   * subtle  → inert grouping that should not need its own border */
+  --surface-canvas: var(--background);
+  --surface-panel: var(--card);
+  --surface-raised: var(--popover);
+  --surface-subtle: var(--muted);
+  --surface-hover: color-mix(in oklch, var(--foreground) 5%, var(--background));
+  --line: var(--border);
+  --line-subtle: color-mix(in oklch, var(--border) 58%, var(--background));
+  --line-strong: var(--input);
+  --content-strong: var(--foreground);
+  --content-primary: color-mix(in oklch, var(--foreground) 90%, var(--background));
+  --content-secondary: var(--muted-foreground);
+  --content-muted: color-mix(
+    in oklch,
+    var(--muted-foreground) 76%,
+    var(--background)
+  );
+  --control-height-sm: 1.75rem;
+  --control-height: 2.125rem;
+  --control-height-lg: 2.5rem;
 }
 
 .dark {

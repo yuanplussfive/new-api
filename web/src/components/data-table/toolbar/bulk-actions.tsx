@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { Table } from '@tanstack/react-table'
 import { X } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -55,6 +56,7 @@ export function DataTableBulkActions<TData>({
   children,
 }: DataTableBulkActionsProps<TData>): React.ReactNode | null {
   const { t } = useTranslation()
+  const shouldReduce = useReducedMotion()
   const selectedRows = table.getFilteredSelectedRowModel().rows
   const selectedCount = selectedRows.length
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -165,7 +167,7 @@ export function DataTableBulkActions<TData>({
         {announcement}
       </div>
 
-      <div
+      <motion.div
         ref={toolbarRef}
         role='toolbar'
         aria-label={t('Bulk actions for {{count}} selected records', {
@@ -173,30 +175,30 @@ export function DataTableBulkActions<TData>({
         })}
         aria-describedby='bulk-actions-description'
         tabIndex={-1}
+        initial={shouldReduce ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: [0.33, 1, 0.68, 1] }}
         onKeyDown={handleKeyDown}
         className={cn(
           placement === 'floating'
-            ? 'fixed bottom-6 left-1/2 z-50 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl transition-all delay-100 duration-300 ease-out hover:scale-105'
-            : 'shrink-0 rounded-xl',
+            ? 'fixed bottom-5 left-1/2 z-50 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2'
+            : 'shrink-0',
           'focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none'
         )}
       >
         <div
           className={cn(
-            'p-2 shadow-xl',
-            'rounded-xl border',
-            'bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur-lg',
-            'flex flex-wrap items-center gap-2'
+            'border-line bg-surface-raised flex flex-wrap items-center gap-2 border px-2.5 py-1.5 shadow-(--surface-shadow-raised)'
           )}
         >
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
-                  variant='outline'
+                  variant='ghost'
                   size='icon'
                   onClick={handleClearSelection}
-                  className='size-6'
+                  className='size-7'
                   aria-label={t('Clear selection')}
                   title={t('Clear selection (Escape)')}
                 />
@@ -217,21 +219,21 @@ export function DataTableBulkActions<TData>({
           />
 
           <div
-            className='flex items-center gap-x-1 text-sm'
+            className='flex items-center gap-x-1.5 text-[12.5px]'
             id='bulk-actions-description'
           >
             <Badge
               variant='default'
-              className='min-w-8 rounded-lg'
+              className='min-w-6 justify-center px-1.5 text-[11px] tabular-nums'
               aria-label={t('{{count}} selected', { count: selectedCount })}
             >
               {selectedCount}
             </Badge>{' '}
-            <span className='hidden sm:inline'>
+            <span className='text-content-secondary hidden sm:inline'>
               {entityName}
               {selectedCount > 1 && /^[a-z]+$/i.test(entityName) ? 's' : ''}
             </span>{' '}
-            {t('selected')}
+            <span className='text-content-secondary'>{t('selected')}</span>
           </div>
 
           <Separator
@@ -242,7 +244,7 @@ export function DataTableBulkActions<TData>({
 
           {children}
         </div>
-      </div>
+      </motion.div>
     </>
   )
 }

@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -41,16 +41,20 @@ function PanelHeader(props: {
   actions?: ReactNode
 }) {
   const heading = (
-    <div className='flex flex-col gap-1'>
-      <div className='text-sm font-semibold'>{props.title}</div>
+    <div className='flex flex-col gap-0.5'>
+      <div className='text-content-strong text-[12.5px] font-semibold'>
+        {props.title}
+      </div>
       {props.description != null && (
-        <div className='text-muted-foreground text-xs'>{props.description}</div>
+        <div className='text-content-secondary text-[11.5px]'>
+          {props.description}
+        </div>
       )}
     </div>
   )
 
   return (
-    <div className='border-b px-4 py-3 sm:px-5'>
+    <div className='border-b border-line-subtle px-4 py-3 sm:px-5'>
       {props.actions != null ? (
         <div className='flex items-start justify-between gap-2'>
           {heading}
@@ -68,13 +72,13 @@ export function PanelWrapper(props: PanelWrapperProps) {
   const resolvedEmptyMessage = props.emptyMessage ?? t('No data available')
   const height = props.height ?? 'h-64'
   const frameClassName = cn(
-    'overflow-hidden rounded-2xl border bg-card shadow-xs',
+    'overflow-hidden rounded-xl border border-line bg-card',
     props.className
   )
 
   if (props.loading) {
     return (
-      <div className={frameClassName}>
+      <div data-dashboard-panel='' className={frameClassName}>
         <PanelHeader title={props.title} description={props.description} />
         <div className={cn('p-4 sm:p-5', props.contentClassName)}>
           <Skeleton className={`w-full ${height}`} />
@@ -85,7 +89,7 @@ export function PanelWrapper(props: PanelWrapperProps) {
 
   if (props.empty) {
     return (
-      <div className={frameClassName}>
+      <div data-dashboard-panel='' className={frameClassName}>
         <PanelHeader title={props.title} description={props.description} />
         <div
           className={cn(
@@ -101,7 +105,7 @@ export function PanelWrapper(props: PanelWrapperProps) {
   }
 
   return (
-    <div className={frameClassName}>
+    <div data-dashboard-panel='' className={frameClassName}>
       <PanelHeader
         title={props.title}
         description={props.description}

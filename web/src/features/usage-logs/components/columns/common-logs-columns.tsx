@@ -17,11 +17,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { ColumnDef } from '@tanstack/react-table'
-import { GitBranch, Sparkles, KeyRound } from 'lucide-react'
+import { GitBranch, KeyRound, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -90,24 +89,6 @@ function formatRatioCompact(ratio: number | undefined): string {
   return ratio % 1 === 0
     ? String(ratio)
     : ratio.toFixed(4).replace(/\.?0+$/, '')
-}
-
-function getGroupRatio(other: LogOtherData | null): number | null {
-  const userGroupRatio = other?.user_group_ratio
-  if (
-    userGroupRatio != null &&
-    userGroupRatio !== -1 &&
-    Number.isFinite(userGroupRatio)
-  ) {
-    return userGroupRatio
-  }
-
-  const groupRatio = other?.group_ratio
-  if (groupRatio != null && groupRatio !== 1 && Number.isFinite(groupRatio)) {
-    return groupRatio
-  }
-
-  return null
 }
 
 function buildDetailSegments(
@@ -629,21 +610,28 @@ export function useCommonLogsColumns(
         const displayName = sensitiveVisible ? tokenName : '••••'
         let group = log.group
         if (!group) group = other?.group || ''
-        const groupRatio = getGroupRatio(other)
 
         return (
-          <div className='flex max-w-[200px] flex-col gap-0.5'>
+          <div className='flex max-w-[320px] min-w-0 items-center gap-1.5'>
             <TooltipProvider delay={300}>
               <Tooltip>
                 <TooltipTrigger render={<div className='max-w-full' />}>
                   <StatusBadge
-                    label={displayName}
                     icon={KeyRound}
                     copyText={sensitiveVisible ? log.token_name : undefined}
                     size='sm'
                     showDot={false}
                     className='border-border/60 bg-muted/30 text-foreground h-6 max-w-full gap-1.5 overflow-hidden rounded-md border px-2 py-0.5 [font-family:var(--font-body)]'
-                  />
+                  >
+                    <span className='flex min-w-0 items-center gap-1.5'>
+                      <span className='min-w-0 truncate'>{displayName}</span>
+                      {group && (
+                        <span className='text-content-muted shrink-0'>
+                          · {sensitiveVisible ? group : '••••'}
+                        </span>
+                      )}
+                    </span>
+                  </StatusBadge>
                 </TooltipTrigger>
                 {sensitiveVisible && tokenName.length > 16 && (
                   <TooltipContent side='top' className='max-w-xs break-all'>
@@ -652,25 +640,6 @@ export function useCommonLogsColumns(
                 )}
               </Tooltip>
             </TooltipProvider>
-            {(group || groupRatio != null) && (
-              <span className='block max-w-full truncate text-xs leading-none'>
-                {group ? (
-                  <GroupBadge
-                    group={group}
-                    label={sensitiveVisible ? undefined : '••••'}
-                    type='text'
-                    size='sm'
-                    className='inline align-baseline text-xs leading-none [&>span]:leading-none'
-                  />
-                ) : null}
-                {group && groupRatio != null ? ' ' : null}
-                {groupRatio != null ? (
-                  <span className='text-muted-foreground/60 relative top-px align-baseline tabular-nums'>
-                    {formatRatioCompact(groupRatio)}x
-                  </span>
-                ) : null}
-              </span>
-            )}
           </div>
         )
       },
@@ -806,6 +775,7 @@ export function useCommonLogsColumns(
               completionTokens={log.completion_tokens}
               frtMs={other?.frt}
               isStream={log.is_stream}
+              timing={other?.timing}
             />
           )
         },

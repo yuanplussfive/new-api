@@ -149,7 +149,11 @@ export function RechargeFormCard({
 
   if (loading) {
     return (
-      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
+      <Card
+        data-card-hover='false'
+        data-dashboard-panel=''
+        className='gap-0 overflow-hidden py-0'
+      >
         <CardHeader className='border-b p-3 !pb-3 sm:p-5 sm:!pb-5'>
           <Skeleton className='h-6 w-32' />
           <Skeleton className='mt-2 h-4 w-48' />
@@ -200,6 +204,7 @@ export function RechargeFormCard({
 
   return (
     <TitledCard
+      variant='plain'
       title={t('Add Funds')}
       description={t('Choose an amount and payment method')}
       icon={<WalletCards className='h-4 w-4' />}
@@ -208,7 +213,7 @@ export function RechargeFormCard({
       action={
         onOpenBilling ? (
           <Button
-            variant='outline'
+            variant='ghost'
             size='sm'
             onClick={onOpenBilling}
             className='w-full gap-2 sm:w-auto'
@@ -218,7 +223,11 @@ export function RechargeFormCard({
           </Button>
         ) : null
       }
-      contentClassName='space-y-4 sm:space-y-6'
+      contentClassName={cn(
+        'space-y-4 sm:space-y-6',
+        !hasAnyTopup &&
+          'grid grid-cols-1 items-start gap-4 space-y-0 md:grid-cols-2 md:gap-8'
+      )}
     >
       {/* Online Topup Section */}
       {hasAnyTopup ? (
@@ -252,7 +261,7 @@ export function RechargeFormCard({
                           key={preset.value}
                           variant='outline'
                           className={cn(
-                            'flex min-h-16 flex-col items-start rounded-lg px-3 py-2.5 text-left whitespace-normal sm:min-h-[72px] sm:p-4',
+                            'flex min-h-16 flex-col items-start px-3 py-2.5 text-left whitespace-normal sm:min-h-[72px] sm:p-4',
                             selectedPreset === preset.value
                               ? 'border-foreground bg-foreground/5 dark:border-foreground dark:bg-foreground/10'
                               : 'border-muted'
@@ -312,7 +321,7 @@ export function RechargeFormCard({
                     placeholder={t('Minimum {{amount}}', { amount: minTopup })}
                     className='h-9 text-base sm:h-10 sm:text-lg'
                   />
-                  <div className='bg-muted/30 flex min-h-9 items-center justify-between gap-2 rounded-md border px-3 lg:min-w-52'>
+                  <div className='border-line-subtle flex min-h-9 items-center justify-between gap-2 border-y px-0 lg:min-w-52'>
                     <span className='text-muted-foreground truncate text-xs'>
                       {t('Amount to pay:')}
                     </span>
@@ -360,7 +369,7 @@ export function RechargeFormCard({
                               ? `${method.name}. ${disabledReason}`
                               : method.name
                           }
-                          className='min-h-14 min-w-0 justify-start gap-2 rounded-lg px-3 py-2 text-left'
+                          className='min-h-14 min-w-0 justify-start gap-2 px-3 py-2 text-left'
                         >
                           {paymentLoading === method.type ? (
                             <Loader2 className='h-4 w-4 animate-spin' />
@@ -399,7 +408,7 @@ export function RechargeFormCard({
                   </div>
                 ) : null}
                 {!hasStandardPaymentMethods && !hasWaffoPaymentMethods && (
-                  <Alert>
+                  <Alert className='border-l-line-strong text-content-secondary rounded-none border-0 border-l-2 bg-transparent px-3 py-1.5'>
                     <AlertDescription>
                       {t(
                         'No payment methods available. Please contact administrator.'
@@ -458,7 +467,7 @@ export function RechargeFormCard({
                                 ? `${method.name}. ${disabledReason}`
                                 : method.name
                             }
-                            className='min-h-14 min-w-0 justify-start gap-2 rounded-lg px-3 py-2 text-left'
+                            className='min-h-14 min-w-0 justify-start gap-2 px-3 py-2 text-left'
                           >
                             {methodIcon}
                             <span className='flex min-w-0 flex-col items-start gap-0.5'>
@@ -492,7 +501,7 @@ export function RechargeFormCard({
           )}
         </div>
       ) : (
-        <Alert>
+        <Alert className='border-l-line-strong text-content-secondary rounded-none border-0 border-l-2 bg-transparent px-3 py-1.5'>
           <AlertDescription>
             {t(
               'Online topup is not enabled. Please use redemption code or contact administrator.'
@@ -568,7 +577,7 @@ export function RechargeFormCard({
           )}
         </div>
       ) : (
-        <Alert className='border-t'>
+        <Alert className='border-l-line-strong text-content-secondary rounded-none border-0 border-t border-l-0 border-l-2 bg-transparent px-3 py-1.5'>
           <AlertDescription>
             {t(
               'Redemption codes are disabled until the administrator confirms compliance terms.'

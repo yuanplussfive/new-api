@@ -31,6 +31,8 @@ import {
   CodeBlock,
   CodeBlockCopyButton,
 } from '@/components/ai-elements/code-block'
+import { MermaidDiagram } from '@/components/ai-elements/mermaid-diagram'
+import { renderMath } from '@/components/ui/markdown'
 import { cn } from '@/lib/utils'
 
 import { getNodeKey } from './response-content'
@@ -142,6 +144,11 @@ export function renderList(
 
 export function renderCodeBlock(node: CodeBlockNode, key: string): ReactNode {
   const language = node.language || 'plaintext'
+
+  if (language === 'mermaid') {
+    return <MermaidDiagram code={node.code} key={key} />
+  }
+
   const lineCount = node.code.split('\n').length
 
   return (
@@ -192,22 +199,20 @@ function renderDefinitionItem(
 
 export function renderMathBlock(node: MathBlockNode, key: string): ReactNode {
   return (
-    <pre
-      className='border-border bg-muted/40 my-4 overflow-x-auto rounded-lg border p-4 font-mono text-sm'
+    <div
+      className='my-3 overflow-x-auto [&_.katex-display]:my-3 [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden'
+      dangerouslySetInnerHTML={{ __html: renderMath(node.content, true) }}
       key={key}
-    >
-      {node.content}
-    </pre>
+    />
   )
 }
 
 export function renderMathInline(node: MathInlineNode, key: string): ReactNode {
   return (
-    <code
-      className='bg-muted/70 text-foreground rounded px-1 py-0.5 font-mono text-[0.9em]'
+    <span
+      className='[&_.katex]:text-[1.05em]'
+      dangerouslySetInnerHTML={{ __html: renderMath(node.content, false) }}
       key={key}
-    >
-      {node.content}
-    </code>
+    />
   )
 }

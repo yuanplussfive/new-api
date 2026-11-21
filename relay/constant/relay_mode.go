@@ -58,6 +58,8 @@ func Path2RelayMode(path string) int {
 	relayMode := RelayModeUnknown
 	if strings.HasPrefix(path, "/v1/chat/completions") || strings.HasPrefix(path, "/pg/chat/completions") {
 		relayMode = RelayModeChatCompletions
+	} else if strings.HasPrefix(path, "/pg/responses") || strings.HasPrefix(path, "/v1/responses") {
+		relayMode = RelayModeResponses
 	} else if strings.HasPrefix(path, "/v1/completions") {
 		relayMode = RelayModeCompletions
 	} else if strings.HasPrefix(path, "/v1/embeddings") {
@@ -74,8 +76,6 @@ func Path2RelayMode(path string) int {
 		relayMode = RelayModeEdits
 	} else if strings.HasPrefix(path, "/v1/responses/compact") {
 		relayMode = RelayModeResponsesCompact
-	} else if strings.HasPrefix(path, "/v1/responses") {
-		relayMode = RelayModeResponses
 	} else if strings.HasPrefix(path, "/v1/alpha/search") {
 		relayMode = RelayModeAlphaSearch
 	} else if strings.HasPrefix(path, "/v1/tools/search") {

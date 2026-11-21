@@ -31,9 +31,12 @@ export function SignUp() {
 
   return (
     <AuthLayout>
-      <div className='w-full space-y-8'>
+      <div className='w-full space-y-7'>
         <div className='space-y-2'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
+          <p className='text-content-muted font-mono text-[11px] tracking-[0.14em] uppercase'>
+            sign up
+          </p>
+          <h2 className='text-[22px] leading-tight font-semibold tracking-[-0.02em] sm:text-left'>
             {t('Create an account')}
           </h2>
           <p className='text-muted-foreground text-left text-sm sm:text-base'>

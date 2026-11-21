@@ -18,6 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Edit,
   FileCode2,
@@ -26,6 +28,7 @@ import {
   Trash2,
   type LucideIcon,
 } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -48,6 +51,7 @@ import {
 } from '../../lib'
 import type { Message } from '../../types'
 import { MessageActionButton } from './message-action-button'
+import { MessageDeleteConfirmDialog } from './message-delete-confirm-dialog'
 
 interface MessageActionsProps {
   message: Message
@@ -56,6 +60,7 @@ interface MessageActionsProps {
   onToggleSource?: (message: Message) => void
   onEdit?: (message: Message) => void
   onDelete?: (message: Message) => void
+  onSelectVersion?: (message: Message, versionIndex: number) => void
   isSourceVisible?: boolean
   isGenerating?: boolean
   alwaysVisible?: boolean
@@ -78,12 +83,14 @@ export function MessageActions({
   onToggleSource,
   onEdit,
   onDelete,
+  onSelectVersion,
   isSourceVisible = false,
   isGenerating = false,
   alwaysVisible = false,
   className = '',
 }: MessageActionsProps) {
   const { t } = useTranslation()
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const { copiedText, copyToClipboard } = useCopyToClipboard()
   const { guardAction } = useMessageActionGuard(isGenerating)
 
@@ -103,9 +110,12 @@ export function MessageActions({
   const handleRegenerate = guardAction(() => onRegenerate?.(message))
   const handleToggleSource = () => onToggleSource?.(message)
   const handleEdit = guardAction(() => onEdit?.(message))
-  const handleDelete = guardAction(() => onDelete?.(message))
+  const handleDelete = guardAction(() => setDeleteConfirmOpen(true))
 
   const visibilityClass = getMessageActionsVisibilityClass(alwaysVisible)
+  const versionIndex = message.versionIndex ?? 0
+  const versionCount = message.versions.length
+  const showVersions = Boolean(onSelectVersion) && versionCount > 1
   const actions: MessageActionItem[] = []
 
   if (hasContent) {
@@ -157,10 +167,35 @@ export function MessageActions({
     })
   }
 
-  if (actions.length === 0) return null
+  if (actions.length === 0 && !showVersions) return null
 
   return (
     <>
+      <MessageDeleteConfirmDialog
+        disabled={isGenerating}
+        onConfirm={() => onDelete?.(message)}
+        onOpenChange={setDeleteConfirmOpen}
+        open={deleteConfirmOpen}
+      />
+      {showVersions ? (
+        <div className={`flex items-center gap-0.5 ${className}`}>
+          <MessageActionButton
+            disabled={versionIndex <= 0 || isGenerating}
+            icon={ChevronLeft}
+            label={t('Previous version')}
+            onClick={() => onSelectVersion?.(message, versionIndex - 1)}
+          />
+          <span className='text-content-muted px-0.5 font-mono text-[11px] tabular-nums'>
+            {versionIndex + 1}/{versionCount}
+          </span>
+          <MessageActionButton
+            disabled={versionIndex >= versionCount - 1 || isGenerating}
+            icon={ChevronRight}
+            label={t('Next version')}
+            onClick={() => onSelectVersion?.(message, versionIndex + 1)}
+          />
+        </div>
+      ) : null}
       <TooltipProvider delay={300}>
         <div
           className={`hidden items-center gap-0.5 transition-opacity md:flex ${visibilityClass} ${className}`}

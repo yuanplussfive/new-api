@@ -157,6 +157,23 @@ it('keeps the drag-selected model name highlighted when the row click opens the 
   expect(String(window.getSelection())).toBe('gpt-4.1-mini')
 })
 
+it('returns to the model table when a clean inline editor is closed', async () => {
+  const user = userEvent.setup()
+  await renderEditor()
+  const row = await screen.findByRole('row', { name: /gpt-4\.1-mini/ })
+  await user.click(within(row).getByRole('button', { name: 'Edit' }))
+  expect(
+    screen.getByRole('region', { name: 'Edit model pricing' })
+  ).toBeVisible()
+
+  await user.click(screen.getByRole('button', { name: 'Close' }))
+
+  expect(
+    screen.queryByRole('region', { name: 'Edit model pricing' })
+  ).toBeNull()
+  expect(row).toBeVisible()
+})
+
 it('keeps other rows mounted when a different model is opened for editing', async () => {
   await renderEditor()
   const targetRow = await screen.findByRole('row', { name: /gpt-4\.1-mini/ })
@@ -389,7 +406,7 @@ it('opens the mobile pricing drawer with the same instructions through the keybo
   const originalMatchMedia = window.matchMedia
   vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
     ...originalMatchMedia(query),
-    matches: query.includes('max-width') || originalMatchMedia(query).matches,
+    matches: query === '(width < 1280px)' || originalMatchMedia(query).matches,
   }))
   await renderEditor(pricingIssueFixture)
   screen.getByRole('button', { name: 'Review prices' }).focus()

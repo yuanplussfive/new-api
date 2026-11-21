@@ -36,6 +36,11 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from '@/components/ui/combobox'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 import { cn } from '@/lib/utils'
 
@@ -341,17 +346,27 @@ export function MultiSelect(props: MultiSelectProps) {
                         </span>
                       )}
                       {props.copyChipOnClick ? (
-                        <button
-                          type='button'
-                          onClick={(event) =>
-                            handleCopyChip(event, value, label)
-                          }
-                          onPointerDown={(event) => event.stopPropagation()}
-                          title={t('Click to copy')}
-                          className='max-w-[16rem] cursor-pointer truncate rounded-sm hover:underline'
-                        >
-                          {label}
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <button
+                                type='button'
+                                onClick={(event) =>
+                                  handleCopyChip(event, value, label)
+                                }
+                                onPointerDown={(event) =>
+                                  event.stopPropagation()
+                                }
+                                className='max-w-[16rem] cursor-pointer truncate rounded-sm hover:underline'
+                              >
+                                {label}
+                              </button>
+                            }
+                          />
+                          <TooltipContent>
+                            {`${t('Click to copy')}: ${label}`}
+                          </TooltipContent>
+                        </Tooltip>
                       ) : (
                         <span className='max-w-[16rem] truncate'>{label}</span>
                       )}

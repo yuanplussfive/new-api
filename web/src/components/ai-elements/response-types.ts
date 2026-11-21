@@ -27,6 +27,8 @@ export type ResponseProps = {
   final?: boolean
   /** Distinct stream-markdown-parser cache id when multiple Responses stream concurrently */
   parserId?: string
+  /** Skip parsing above this many characters; streamed reasoning is allowed more. */
+  maxParsedChars?: number
 }
 
 export type AlertKind = 'note' | 'tip' | 'important' | 'warning' | 'caution'

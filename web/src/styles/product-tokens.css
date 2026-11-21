@@ -1,0 +1,160 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+/* Ink-on-paper console palette. User-selected presets override these tokens.
+ *
+ * Surfaces are neutral (white canvas, near-white panels) with a single
+ * near-black primary, so hierarchy comes from hairlines, type weight and
+ * spacing rather than colour. Data colours are reserved for charts and
+ * status. Surface intent (canvas / panel / raised / subtle) is expressed
+ * through the existing shadcn tokens so every preset keeps working: a preset
+ * only has to restate `--background`, `--card`, `--border`, and the semantic
+ * bridge in theme.css resolves the rest. Keep component styles on the
+ * semantic tokens instead of hard-coded colours. */
+
+/* Nunito Sans carries the Latin text; CJK falls back to the platform faces in
+ * `--font-ui-sans`. Both faces are bundled from `public/fonts` so the app does
+ * not depend on a CDN. */
+@font-face {
+  font-family: 'Nunito Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  src: url('../assets/fonts/nunito-sans-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('../assets/fonts/jetbrains-mono-latin-wght-normal.woff2')
+    format('woff2-variations');
+}
+
+:root {
+  --font-ui-sans:
+    'Nunito Sans Variable', 'Nunito Sans', 'HarmonyOS Sans SC', 'PingFang SC',
+    'Microsoft YaHei UI', 'Noto Sans SC', 'Noto Sans CJK SC',
+    'Source Han Sans SC', sans-serif;
+  --font-public-sans:
+    'Nunito Sans Variable', 'Nunito Sans', 'HarmonyOS Sans SC', 'PingFang SC',
+    'Microsoft YaHei UI', 'Noto Sans SC', 'Noto Sans CJK SC',
+    'Source Han Sans SC', sans-serif;
+  /* Square corners are the house style; the Tailwind radius scale derives from
+   * this token, so every standard `rounded-*` utility resolves to 0. */
+  --radius: 0rem;
+  --app-header-height: 3.25rem;
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #fafafa;
+  --secondary: #eeeeee;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f5f5f5;
+  --muted-foreground: #606060;
+  --accent: #eeeeee;
+  --accent-foreground: #0a0a0a;
+  --border: #e8e8e8;
+  --input: #e8e8e8;
+  --ring: #a1a1a1;
+  --destructive: #e40014;
+  --success: #009767;
+  --warning: #cd8900;
+  --info: #0084cc;
+  --chart-1: #f05100;
+  --chart-2: #009588;
+  --chart-3: #104e64;
+  --chart-4: #fcbb00;
+  --chart-5: #f99c00;
+  --overview-accent-1: var(--chart-1);
+  --overview-accent-2: var(--chart-2);
+  --overview-accent-3: var(--chart-3);
+  --sidebar: #f7f7f7;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: #e4e4e4;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: #e8e8e8;
+  --sidebar-ring: var(--ring);
+  --skeleton-base: #f5f5f5;
+  --skeleton-highlight: #fafafa;
+  --table-row: transparent;
+  --table-header: var(--background);
+  --table-header-hover: #fafafa;
+  --surface-shadow: 0 1px 2px rgb(10 10 10 / 0.04);
+  --surface-shadow-raised:
+    0 16px 40px -24px rgb(10 10 10 / 0.22),
+    0 2px 6px -2px rgb(10 10 10 / 0.06);
+}
+
+.dark {
+  --background: #1e1e1e;
+  --foreground: #f3f3f3;
+  --card: #2a2a2a;
+  --card-foreground: #f3f3f3;
+  --popover: #2f2f2f;
+  --popover-foreground: #f3f3f3;
+  --primary: #f3f3f3;
+  --primary-foreground: #0c0c0c;
+  --secondary: #373737;
+  --secondary-foreground: #f3f3f3;
+  --muted: #2f2f2f;
+  --muted-foreground: #b7b7b7;
+  --accent: #3e3e3e;
+  --accent-foreground: #fafafa;
+  --border: #ffffff1a;
+  --input: #ffffff2b;
+  --ring: #989898;
+  --destructive: #ff6568;
+  --success: #00bb7f;
+  --warning: #f99c00;
+  --info: #00a4ed;
+  --chart-1: #1447e6;
+  --chart-2: #00bb7f;
+  --chart-3: #f99c00;
+  --chart-4: #ac4bff;
+  --chart-5: #ff2357;
+  --sidebar: #1c1c1c;
+  --sidebar-foreground: #eeeeee;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: #3c3c3c;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #ffffff1c;
+  --sidebar-ring: var(--ring);
+  --skeleton-base: #373737;
+  --skeleton-highlight: #525252;
+  --table-row: transparent;
+  --table-header: var(--background);
+  --table-header-hover: #1f1f1f;
+  --surface-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  --surface-shadow-raised:
+    0 18px 44px -26px rgb(0 0 0 / 0.62),
+    0 2px 6px -2px rgb(0 0 0 / 0.36);
+}

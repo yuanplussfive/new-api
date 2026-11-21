@@ -48,14 +48,14 @@ export function EmptyState(props: EmptyStateProps) {
     <FadeIn>
       <Empty
         className={cn(
-          'min-h-[300px]',
+          'min-h-[220px]',
           props.bordered && 'border',
           props.className
         )}
       >
         <EmptyHeader>
           <EmptyMedia variant='icon'>
-            <Icon className='size-6' />
+            <Icon className='size-5' />
           </EmptyMedia>
           <EmptyTitle>{props.title ?? t('No Data')}</EmptyTitle>
           {props.description != null && (

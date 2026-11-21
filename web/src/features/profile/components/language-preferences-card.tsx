@@ -16,13 +16,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Languages, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Combobox } from '@/components/ui/combobox'
-import { TitledCard } from '@/components/ui/titled-card'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field'
 import {
   INTERFACE_LANGUAGE_OPTIONS,
   normalizeInterfaceLanguage,
@@ -42,7 +48,8 @@ type LanguagePreferencesCardProps = {
 
 export function LanguagePreferencesCard(props: LanguagePreferencesCardProps) {
   const { t, i18n } = useTranslation()
-  const { auth } = useAuthStore()
+  const currentUser = useAuthStore((state) => state.auth.user)
+  const setUser = useAuthStore((state) => state.auth.setUser)
   const [saving, setSaving] = useState(false)
 
   const savedLanguage = useMemo(() => {
@@ -72,13 +79,13 @@ export function LanguagePreferencesCard(props: LanguagePreferencesCardProps) {
         throw createServerError(response, t('Failed to update settings'))
       }
 
-      if (auth.user) {
+      if (currentUser) {
         const existingSetting =
-          typeof auth.user.setting === 'string'
-            ? parseUserSettings(auth.user.setting)
-            : (auth.user.setting ?? {})
-        auth.setUser({
-          ...auth.user,
+          typeof currentUser.setting === 'string'
+            ? parseUserSettings(currentUser.setting)
+            : (currentUser.setting ?? {})
+        setUser({
+          ...currentUser,
           setting: JSON.stringify({
             ...existingSetting,
             language: nextLanguage,
@@ -98,39 +105,51 @@ export function LanguagePreferencesCard(props: LanguagePreferencesCardProps) {
   }
 
   return (
-    <TitledCard
-      title={t('Language Preferences')}
-      description={t('Set the language used across the interface')}
-      icon={<Languages className='h-4 w-4' />}
-      iconTone='chart-4'
-      disableHoverEffect
+    <section
+      className='profile-section'
+      aria-labelledby='profile-language-title'
     >
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4'>
-        <div className='space-y-1'>
-          <div className='text-sm font-medium'>{t('Interface Language')}</div>
-          <p className='text-muted-foreground line-clamp-2 text-xs sm:text-sm'>
-            {t(
-              'Language preferences sync across your signed-in devices and affect API error messages.'
-            )}
-          </p>
-        </div>
-        <div className='flex items-center gap-2 sm:min-w-48'>
-          <Combobox
-            options={INTERFACE_LANGUAGE_OPTIONS.map((language) => ({
-              value: language.code,
-              label: language.label,
-            }))}
-            value={currentLanguage}
-            onValueChange={handleLanguageChange}
-            disabled={saving}
-            className='w-full sm:w-48'
-            placeholder={t('Select language')}
-          />
-          {saving && (
-            <Loader2 className='text-muted-foreground size-4 animate-spin' />
-          )}
-        </div>
-      </div>
-    </TitledCard>
+      <h2 id='profile-language-title' className='profile-section-title'>
+        {t('Language Preferences')}
+      </h2>
+      <FieldGroup className='profile-section-fields'>
+        <Field className='profile-field profile-language-field'>
+          <div className='profile-field-label'>
+            <FieldLabel id='profile-language-label' htmlFor='profile-language'>
+              {t('Interface Language')}
+            </FieldLabel>
+            <FieldDescription id='profile-language-description'>
+              {t(
+                'Language preferences sync across your signed-in devices and affect API error messages.'
+              )}
+            </FieldDescription>
+          </div>
+          <FieldContent className='profile-field-control'>
+            <div className='profile-language-control'>
+              <Combobox
+                id='profile-language'
+                aria-labelledby='profile-language-label'
+                aria-describedby='profile-language-description'
+                options={INTERFACE_LANGUAGE_OPTIONS.map((language) => ({
+                  value: language.code,
+                  label: language.label,
+                }))}
+                value={currentLanguage}
+                onValueChange={handleLanguageChange}
+                disabled={saving}
+                className='w-full'
+                placeholder={t('Select language')}
+              />
+              {saving && (
+                <Loader2
+                  className='text-muted-foreground size-4 shrink-0 animate-spin'
+                  aria-label={t('Saving...')}
+                />
+              )}
+            </div>
+          </FieldContent>
+        </Field>
+      </FieldGroup>
+    </section>
   )
 }

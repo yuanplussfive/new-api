@@ -59,6 +59,8 @@ export interface PublicHeaderProps {
   showNavigation?: boolean
   showAuthButtons?: boolean
   showNotifications?: boolean
+  /** Transparent bar that sits on top of a dark hero until the page scrolls. */
+  overlay?: boolean
   className?: string
 }
 
@@ -72,16 +74,17 @@ export function PublicHeader(props: PublicHeaderProps) {
     homeUrl = '/',
     showAuthButtons = true,
     showNotifications = true,
+    overlay = false,
   } = props
 
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [authPromptTarget, setAuthPromptTarget] =
     useState<AuthPromptTarget | null>(null)
   const [authPromptSecondsLeft, setAuthPromptSecondsLeft] =
     useState(AUTH_PROMPT_SECONDS)
+  const [scrolled, setScrolled] = useState(false)
   const { auth } = useAuthStore()
   const {
     systemName,
@@ -123,11 +126,23 @@ export function PublicHeader(props: PublicHeaderProps) {
   if (loading) authContent = <Skeleton className='h-8 w-20 rounded-lg' />
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
+    if (!overlay) return
+    const onScroll = () => setScrolled(window.scrollY > 24)
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [overlay])
+
+  const overHero = overlay && !scrolled
+  const navTone = overHero
+    ? {
+        active: 'text-foreground',
+        idle: 'text-muted-foreground hover:text-foreground',
+      }
+    : {
+        active: 'text-foreground',
+        idle: 'text-muted-foreground hover:text-foreground',
+      }
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
@@ -199,21 +214,16 @@ export function PublicHeader(props: PublicHeaderProps) {
 
   return (
     <>
-      <header className='pointer-events-none fixed inset-x-0 top-0 z-50'>
-        <div
-          className={cn(
-            'pointer-events-auto mx-auto transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
-            scrolled ? 'max-w-[52rem] px-3 pt-3' : 'max-w-7xl px-4 pt-0 md:px-6'
-          )}
-        >
-          <nav
-            className={cn(
-              'flex items-center justify-between gap-2 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
-              scrolled
-                ? 'bg-background/60 ring-border/50 h-12 rounded-2xl pr-1.5 pl-4 shadow-[0_2px_16px_-6px_rgba(0,0,0,0.08),0_0_0_0.5px_rgba(0,0,0,0.02)] ring-[0.5px] backdrop-blur-2xl dark:shadow-[0_2px_16px_-6px_rgba(0,0,0,0.4)]'
-                : 'h-16 px-2'
-            )}
-          >
+      <header
+        className={cn(
+          'fixed inset-x-0 top-0 z-50 border-b backdrop-blur-md transition-colors duration-300',
+          overHero
+            ? 'border-transparent bg-transparent text-foreground'
+            : 'border-border bg-background/95 text-foreground'
+        )}
+      >
+        <div className='mx-auto max-w-7xl px-4 sm:px-6'>
+          <nav className='flex h-16 items-center justify-between gap-2'>
             {/* Logo */}
             <div className='@container/system-brand flex min-w-0 flex-1 items-center gap-1 lg:min-w-36'>
               <Link
@@ -253,7 +263,8 @@ export function PublicHeader(props: PublicHeaderProps) {
                       tabIndex={link.disabled ? -1 : undefined}
                       onClick={(event) => handleNavLinkClick(event, link)}
                       className={cn(
-                        'text-muted-foreground hover:text-foreground min-w-0 truncate rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200',
+                        'min-w-0 truncate rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200',
+                        navTone.idle,
                         link.disabled && 'pointer-events-none opacity-50'
                       )}
                     >
@@ -270,9 +281,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                     onClick={(event) => handleNavLinkClick(event, link)}
                     className={cn(
                       'min-w-0 truncate rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200',
-                      isActive
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground',
+                      isActive ? navTone.active : navTone.idle,
                       link.disabled && 'pointer-events-none opacity-50'
                     )}
                   >
@@ -287,21 +296,28 @@ export function PublicHeader(props: PublicHeaderProps) {
                 <div className='bg-border/40 mx-2 h-4 w-px' />
               )}
 
-              {showLanguageSwitcher && <LanguageSwitcher />}
-              {showThemeSwitch && <ThemeSwitch />}
-              {showNotifications && (
-                <NotificationPopover
-                  open={notifications.popoverOpen}
-                  onOpenChange={notifications.setPopoverOpen}
-                  unreadCount={notifications.unreadCount}
-                  activeTab={notifications.activeTab}
-                  onTabChange={notifications.setActiveTab}
-                  notice={notifications.notice}
-                  announcements={notifications.announcements}
-                  loading={notifications.loading}
-                />
-              )}
-
+              <div
+                className={cn(
+                  'flex items-center',
+                  overHero &&
+                    '[&_button]:text-muted-foreground hover:[&_button]:text-foreground'
+                )}
+              >
+                {showLanguageSwitcher && <LanguageSwitcher />}
+                {showThemeSwitch && <ThemeSwitch />}
+                {showNotifications && (
+                  <NotificationPopover
+                    open={notifications.popoverOpen}
+                    onOpenChange={notifications.setPopoverOpen}
+                    unreadCount={notifications.unreadCount}
+                    activeTab={notifications.activeTab}
+                    onTabChange={notifications.setActiveTab}
+                    notice={notifications.notice}
+                    announcements={notifications.announcements}
+                    loading={notifications.loading}
+                  />
+                )}
+              </div>
               {showAuthButtons && (
                 <>
                   <div className='bg-border/40 mx-1 h-4 w-px' />

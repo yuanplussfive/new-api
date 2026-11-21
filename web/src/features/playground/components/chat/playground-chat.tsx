@@ -52,6 +52,7 @@ interface PlaygroundChatProps {
   onRegenerateMessage?: (message: MessageType) => void
   onEditMessage?: (message: MessageType) => void
   onDeleteMessage?: (message: MessageType) => void
+  onSelectVersion?: (message: MessageType, versionIndex: number) => void
   onSelectPrompt?: (prompt: string) => void
   isGenerating?: boolean
   isLoadingMessages?: boolean
@@ -68,6 +69,7 @@ export function PlaygroundChat({
   onRegenerateMessage,
   onEditMessage,
   onDeleteMessage,
+  onSelectVersion,
   onSelectPrompt,
   isGenerating = false,
   isLoadingMessages = false,
@@ -129,7 +131,7 @@ export function PlaygroundChat({
 
     return (
       <Message
-        className='group flex-row-reverse py-2.5'
+        className='group flex flex-col py-0'
         from={message.from}
         key={message.key}
       >
@@ -155,6 +157,7 @@ export function PlaygroundChat({
                   onToggleSource={handleToggleMessageSource}
                   onEdit={onEditMessage}
                   onDelete={onDeleteMessage}
+                  onSelectVersion={onSelectVersion}
                   isSourceVisible={isSourceVisible}
                   isGenerating={isGenerating}
                   alwaysVisible={alwaysShowActions}
@@ -215,7 +218,9 @@ export function PlaygroundChat({
     <Conversation>
       {/* Remove outer padding; apply padding to inner centered container to align with input */}
       <ConversationContent className='p-0'>
-        <div className='mx-auto w-full max-w-4xl px-4 py-4'>{chatContent}</div>
+        <div className='mx-auto w-full max-w-(--chat-column-max) px-(--chat-column-padding) py-6'>
+          {chatContent}
+        </div>
       </ConversationContent>
       <ConversationScrollButton />
     </Conversation>

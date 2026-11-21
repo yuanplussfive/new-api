@@ -244,10 +244,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
 
   return (
     <div
-      className={cn(
-        'bg-card/50 rounded-lg border p-2.5 sm:p-3',
-        props.className
-      )}
+      className={cn('min-w-0 p-0', props.className)}
     >
       <div className='flex flex-wrap items-start gap-2'>
         <div className='grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]'>

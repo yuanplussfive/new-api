@@ -145,6 +145,21 @@ async function deleteRow(
   await user.click(await screen.findByRole('menuitem', { name: 'Delete' }))
 }
 
+it('toggles ratio exposure from its label and with the keyboard', async () => {
+  const user = userEvent.setup()
+  await renderForm()
+  const control = screen.getByRole('switch', { name: 'Expose ratio API' })
+
+  await user.click(screen.getByText('Expose ratio API'))
+  expect(control).toBeChecked()
+  expect(saveButton()).toBeEnabled()
+
+  control.focus()
+  await user.keyboard(' ')
+  expect(control).not.toBeChecked()
+  expect(saveButton()).toBeDisabled()
+})
+
 it('keeps a deleted saved price listed as pending deletion with an undo action', async () => {
   const user = userEvent.setup()
   const { onSave } = await renderForm()

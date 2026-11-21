@@ -332,10 +332,10 @@ export function AccountBindings({ profile, onUpdate }: AccountBindingsProps) {
           return (
             <li
               key={binding.id}
-              className='flex min-w-0 items-center justify-between gap-2 rounded-lg border px-2.5 py-2'
+              className='border-line-subtle flex min-w-0 items-center justify-between gap-2 border-b px-0 py-2.5'
             >
               <div className='flex min-w-0 items-center gap-2'>
-                <div className='bg-muted shrink-0 rounded-md p-1.5'>
+                <div className='text-content-muted flex size-6 shrink-0 items-center justify-center'>
                   <binding.icon className='h-4 w-4' />
                 </div>
                 <div className='min-w-0'>
@@ -379,10 +379,10 @@ export function AccountBindings({ profile, onUpdate }: AccountBindingsProps) {
           return (
             <li
               key={provider.id}
-              className='flex min-w-0 items-center justify-between gap-2 rounded-lg border px-2.5 py-2'
+              className='border-line-subtle flex min-w-0 items-center justify-between gap-2 border-b px-0 py-2.5'
             >
               <div className='flex min-w-0 items-center gap-2'>
-                <div className='bg-muted shrink-0 rounded-md p-1.5'>
+                <div className='text-content-muted flex size-6 shrink-0 items-center justify-center'>
                   <Link2 className='h-4 w-4' />
                 </div>
                 <div className='min-w-0'>

@@ -17,9 +17,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Edit, RefreshCw, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { MessageActionButton } from './message-action-button'
+import { MessageDeleteConfirmDialog } from './message-delete-confirm-dialog'
 
 type MessageErrorActionsProps = {
   disabled?: boolean
@@ -35,40 +37,49 @@ export function MessageErrorActions({
   onRetry,
 }: MessageErrorActionsProps) {
   const { t } = useTranslation()
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   if (!onRetry && !onEditPrompt && !onDelete) {
     return null
   }
 
   return (
-    <div className='flex flex-wrap items-center gap-0.5 pt-2'>
-      {onRetry && (
-        <MessageActionButton
-          disabled={disabled}
-          icon={RefreshCw}
-          label={t('Retry')}
-          onClick={onRetry}
-        />
-      )}
+    <>
+      <MessageDeleteConfirmDialog
+        disabled={disabled}
+        onConfirm={() => onDelete?.()}
+        onOpenChange={setDeleteConfirmOpen}
+        open={deleteConfirmOpen}
+      />
+      <div className='flex flex-wrap items-center gap-0.5 pt-2'>
+        {onRetry && (
+          <MessageActionButton
+            disabled={disabled}
+            icon={RefreshCw}
+            label={t('Retry')}
+            onClick={onRetry}
+          />
+        )}
 
-      {onEditPrompt && (
-        <MessageActionButton
-          disabled={disabled}
-          icon={Edit}
-          label={t('Edit')}
-          onClick={onEditPrompt}
-        />
-      )}
+        {onEditPrompt && (
+          <MessageActionButton
+            disabled={disabled}
+            icon={Edit}
+            label={t('Edit')}
+            onClick={onEditPrompt}
+          />
+        )}
 
-      {onDelete && (
-        <MessageActionButton
-          disabled={disabled}
-          icon={Trash2}
-          label={t('Delete')}
-          onClick={onDelete}
-          variant='destructive'
-        />
-      )}
-    </div>
+        {onDelete && (
+          <MessageActionButton
+            disabled={disabled}
+            icon={Trash2}
+            label={t('Delete')}
+            onClick={() => setDeleteConfirmOpen(true)}
+            variant='destructive'
+          />
+        )}
+      </div>
+    </>
   )
 }

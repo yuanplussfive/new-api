@@ -163,6 +163,11 @@ export function ApiKeyQuotaCell(props: ApiKeyQuotaCellProps) {
             props.variant === 'card' && 'text-sm leading-5 font-normal'
           )}
         >
+          {props.variant !== 'card' && (
+            <span className='mr-1 text-[10px] tracking-[0.04em] uppercase'>
+              {t('Used')}
+            </span>
+          )}
           {formattedUsed}
         </span>
       </span>

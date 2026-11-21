@@ -24,8 +24,28 @@ export const MAX_STORED_MESSAGES_BYTES = 1024 * 1024
 export const MAX_LOADED_MESSAGES_CHARS = 120_000
 export const MAX_LOADED_MESSAGE_CHARS = 40_000
 
+export const thinkingLevelSchema = z.enum([
+  'off',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+])
+
+export const thinkingOverridesSchema = z.record(
+  z.string(),
+  z.array(thinkingLevelSchema).min(1)
+)
+
 export const playgroundConfigSchema = z.object({
   model: z.string().optional(),
+  apiFormat: z.enum(['chat', 'responses', 'claude', 'gemini']).optional(),
+  apiFormatByModel: z
+    .record(z.string(), z.enum(['chat', 'responses', 'claude', 'gemini']))
+    .optional(),
+  modelByGroup: z.record(z.string(), z.string()).optional(),
   group: z.string().optional(),
   temperature: z.number().optional(),
   top_p: z.number().optional(),
@@ -34,6 +54,7 @@ export const playgroundConfigSchema = z.object({
   presence_penalty: z.number().optional(),
   seed: z.number().nullable().optional(),
   stream: z.boolean().optional(),
+  thinking: thinkingLevelSchema.optional(),
 })
 
 export const parameterEnabledSchema = z.object({
@@ -71,15 +92,24 @@ const reasoningSchema = z.object({
   durationMs: z.number().optional(),
 })
 
+const messageAttachmentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  mediaType: z.string(),
+  url: z.string(),
+})
+
 const messageSchema = z.object({
   key: z.string(),
   from: messageRoleSchema,
   versions: z.array(messageVersionSchema).min(1),
+  versionIndex: z.number().int().nonnegative().optional(),
   createdAt: z.number().optional(),
   startedAt: z.number().optional(),
   completedAt: z.number().optional(),
   durationMs: z.number().optional(),
   sources: z.array(sourceSchema).optional(),
+  attachments: z.array(messageAttachmentSchema).optional(),
   reasoning: reasoningSchema.optional(),
   isReasoningStreaming: z.boolean().optional(),
   isReasoningComplete: z.boolean().optional(),
@@ -89,3 +119,23 @@ const messageSchema = z.object({
 })
 
 export const messagesSchema = z.array(messageSchema)
+
+export const MAX_STORED_CONVERSATIONS = 50
+export const MAX_STORED_CONVERSATIONS_BYTES = 2 * 1024 * 1024
+export const MAX_CONVERSATION_TITLE_LENGTH = 60
+
+export const conversationSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().max(MAX_CONVERSATION_TITLE_LENGTH),
+  messages: messagesSchema,
+  updatedAt: z.number(),
+})
+
+export const conversationsSchema = z
+  .array(conversationSchema)
+  .max(MAX_STORED_CONVERSATIONS)
+
+export const activeConversationSchema = z.string().min(1)
+
+export type StoredConversation = z.infer<typeof conversationSchema>
+export type StoredConversationInput = StoredConversation

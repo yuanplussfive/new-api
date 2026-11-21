@@ -38,6 +38,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   DataTableBulkActions,
   DataTableToolbar,
@@ -57,6 +58,7 @@ import {
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { splitPluginBillingExprKey } from '@/features/pricing/lib/plugin-pricing'
 import { useMediaQuery } from '@/hooks'
+import { cn } from '@/lib/utils'
 
 import { safeJsonParse } from '../utils/json-parser'
 import type { PricingMode } from './model-pricing-core'
@@ -121,6 +123,13 @@ export type ModelRatioVisualEditorHandle = {
   closeEditor: () => void
 }
 
+const pricingColumnWidths: Partial<Record<string, string>> = {
+  select: 'w-9',
+  name: 'w-[36%]',
+  billingMode: 'w-36',
+  actions: 'w-24',
+}
+
 const STORAGE_KEY = 'model-ratio-column-visibility'
 
 const ModelRatioVisualEditorComponent = forwardRef<
@@ -162,11 +171,11 @@ const ModelRatioVisualEditorComponent = forwardRef<
 ) {
   const { t } = useTranslation()
   const { models: pricingModels } = usePricingData()
-  const isMobile = useMediaQuery('(max-width: 767px)')
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const useEditorSheet = useMediaQuery('(width < 1280px)')
   const [editorOpen, setEditorOpen] = useState(false)
   const [editData, setEditData] = useState<ModelRatioData | null>(null)
   const [panelDirty, setPanelDirty] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
   const pricingConfig = useModelPricing(
     editData?.name ? [editData.name] : [],
     Boolean(editData?.name)
@@ -406,55 +415,56 @@ const ModelRatioVisualEditorComponent = forwardRef<
       filter.value.includes(PRICE_ATTENTION_FILTER)
   )
 
-  const handleEdit = useCallback(
-    (model: ModelRow) => {
-      // A pending deletion has no draft to edit; it offers undo instead.
-      if (model.isDraftDeleted) return
-      const editableModel = model.draft ?? model.saved ?? model
-      let editBillingMode: PricingMode = 'per-token'
-      if (editableModel.billingMode === 'tiered_expr') {
-        editBillingMode = 'tiered_expr'
-      } else if (editableModel.price && editableModel.price !== '') {
-        editBillingMode = 'per-request'
-      }
-      setEditData({
-        name: editableModel.name,
-        price: editableModel.price,
-        ratio: editableModel.ratio,
-        cacheRatio: editableModel.cacheRatio,
-        createCacheRatio: editableModel.createCacheRatio,
-        completionRatio: editableModel.completionRatio,
-        imageRatio: editableModel.imageRatio,
-        audioRatio: editableModel.audioRatio,
-        audioCompletionRatio: editableModel.audioCompletionRatio,
-        billingMode: editBillingMode,
-        billingExpr: editableModel.billingExpr,
-        pluginBillingExpr: editableModel.pluginBillingExpr,
-        requestRuleExpr: editableModel.requestRuleExpr,
-      })
-      setEditorOpen(true)
-      if (isMobile) setSheetOpen(true)
-    },
-    [isMobile]
-  )
+  const handleEdit = useCallback((model: ModelRow) => {
+    // A pending deletion has no draft to edit; it offers undo instead.
+    if (model.isDraftDeleted) return
+    const editableModel = model.draft ?? model.saved ?? model
+    let editBillingMode: PricingMode = 'per-token'
+    if (editableModel.billingMode === 'tiered_expr') {
+      editBillingMode = 'tiered_expr'
+    } else if (editableModel.price && editableModel.price !== '') {
+      editBillingMode = 'per-request'
+    }
+    setEditData({
+      name: editableModel.name,
+      price: editableModel.price,
+      ratio: editableModel.ratio,
+      cacheRatio: editableModel.cacheRatio,
+      createCacheRatio: editableModel.createCacheRatio,
+      completionRatio: editableModel.completionRatio,
+      imageRatio: editableModel.imageRatio,
+      audioRatio: editableModel.audioRatio,
+      audioCompletionRatio: editableModel.audioCompletionRatio,
+      billingMode: editBillingMode,
+      billingExpr: editableModel.billingExpr,
+      pluginBillingExpr: editableModel.pluginBillingExpr,
+      requestRuleExpr: editableModel.requestRuleExpr,
+    })
+    setEditorOpen(true)
+  }, [])
 
   const closeEditor = useCallback(() => {
     setEditData(null)
     setEditorOpen(false)
-    setSheetOpen(false)
   }, [])
 
-  // The panel does not report when it closes, so only an open one counts.
-  const editorShown = isMobile ? sheetOpen : editorOpen
+  const requestEditorClose = () => {
+    if (isSaving) return
+    if (panelDirty) {
+      setConfirmClose(true)
+      return
+    }
+    setEditorOpen(false)
+  }
+
   useEffect(() => {
-    onEditorDirtyChange?.(editorShown && panelDirty)
-  }, [editorShown, panelDirty, onEditorDirtyChange])
+    onEditorDirtyChange?.(editorOpen && panelDirty)
+  }, [editorOpen, panelDirty, onEditorDirtyChange])
 
   const handleAdd = useCallback(() => {
     setEditData(null)
     setEditorOpen(true)
-    if (isMobile) setSheetOpen(true)
-  }, [isMobile])
+  }, [])
 
   const handleGlobalFilterChange = useCallback<OnChangeFn<string>>(
     (updater) => {
@@ -463,7 +473,6 @@ const ModelRatioVisualEditorComponent = forwardRef<
         if (next !== previous) {
           setEditData(null)
           setEditorOpen(false)
-          setSheetOpen(false)
         }
         return next
       })
@@ -786,8 +795,14 @@ const ModelRatioVisualEditorComponent = forwardRef<
       )}
       <div
         role='region'
+        data-model-prices
         aria-label={t('Model prices')}
-        className='grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(300px,0.72fr)_minmax(520px,1.28fr)] xl:grid-cols-[minmax(320px,0.68fr)_minmax(640px,1.32fr)]'
+        className={cn(
+          'grid min-h-0 min-w-0 flex-1 gap-4 xl:grid-rows-[minmax(0,1fr)]',
+          editorOpen &&
+            !useEditorSheet &&
+            'grid-cols-[minmax(0,1fr)_clamp(22rem,38%,40rem)]'
+        )}
       >
         <div className='flex min-h-0 min-w-0 flex-col gap-3'>
           <DataTableToolbar
@@ -845,16 +860,15 @@ const ModelRatioVisualEditorComponent = forwardRef<
           />
 
           {!hasRows ? (
-            <div className='text-muted-foreground rounded-lg border border-dashed p-8 text-center'>
+            <div className='text-muted-foreground border-line-subtle border-y px-3 py-10 text-center text-sm'>
               {emptyStateText}
             </div>
           ) : (
             <DataTableView
               table={table}
-              containerClassName='min-h-0 flex-1 rounded-md'
+              containerClassName='border-line-subtle min-h-0 flex-1 border-x-0'
               tableContainerClassName='h-full'
-              tableClassName='min-w-[852px] table-fixed'
-              tableHeaderClassName='[&_tr]:border-b-0'
+              tableClassName='min-w-[34rem] table-fixed'
               splitHeaderScrollClassName='h-full'
               bodyContainerClassName='[scrollbar-gutter:stable]'
               splitHeader
@@ -866,11 +880,12 @@ const ModelRatioVisualEditorComponent = forwardRef<
               ]}
               colgroup={
                 <colgroup>
-                  <col className='w-9' />
-                  <col className='w-[300px]' />
-                  <col className='w-[120px]' />
-                  <col className='w-[300px]' />
-                  <col className='w-auto' />
+                  {table.getVisibleLeafColumns().map((column) => (
+                    <col
+                      key={column.id}
+                      className={pricingColumnWidths[column.id]}
+                    />
+                  ))}
                 </colgroup>
               }
               renderRow={(row, { getCellClassName }) => (
@@ -904,8 +919,8 @@ const ModelRatioVisualEditorComponent = forwardRef<
           {hasRows && <DataTablePagination table={table} />}
         </div>
 
-        <div className='hidden min-h-0 min-w-0 md:block'>
-          {editorOpen ? (
+        {editorOpen && !useEditorSheet && (
+          <div className='min-h-0 min-w-0'>
             <ModelPricingEditorPanel
               ref={editorPanelRef}
               editData={editData}
@@ -923,27 +938,11 @@ const ModelRatioVisualEditorComponent = forwardRef<
               }
               onSave={onSave}
               isSaving={isSaving}
-              className='h-full min-h-0'
+              onClose={requestEditorClose}
+              className='border-line-subtle h-full border-l'
             />
-          ) : (
-            <div className='bg-card text-muted-foreground flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-6 text-center'>
-              <div className='text-foreground text-base font-medium'>
-                {t('Select a model to edit pricing')}
-              </div>
-              <p className='max-w-sm text-sm'>
-                {t(
-                  'Use the full-width table to scan prices, then select a row to edit it here.'
-                )}
-              </p>
-              {filterMode !== 'unset' && (
-                <Button variant='outline' onClick={handleAdd}>
-                  <Plus data-icon='inline-start' />
-                  {t('Add model')}
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <DataTableBulkActions table={table} entityName={t('model')}>
@@ -955,11 +954,13 @@ const ModelRatioVisualEditorComponent = forwardRef<
         </Button>
       </DataTableBulkActions>
 
-      {isMobile && (
+      {useEditorSheet && (
         <ModelPricingSheet
           ref={editorPanelRef}
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
+          open={editorOpen}
+          onOpenChange={(open) => {
+            if (!open) requestEditorClose()
+          }}
           editData={editData}
           scrollHeader={scrollHeader}
           onDirtyChange={setPanelDirty}
@@ -977,6 +978,18 @@ const ModelRatioVisualEditorComponent = forwardRef<
           isSaving={isSaving}
         />
       )}
+      <ConfirmDialog
+        open={confirmClose}
+        onOpenChange={setConfirmClose}
+        title={t('Unsaved changes')}
+        desc={t('You have unsaved changes. Are you sure you want to leave?')}
+        confirmText={t('Discard changes')}
+        destructive
+        handleConfirm={() => {
+          setConfirmClose(false)
+          closeEditor()
+        }}
+      />
     </div>
   )
 })

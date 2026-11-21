@@ -23,8 +23,10 @@ import { useLayout } from '@/context/layout-provider'
 import { useSidebarView } from '@/hooks/use-sidebar-view'
 import { MOTION_TRANSITION, MOTION_VARIANTS } from '@/lib/motion'
 
-import { NavGroup } from './nav-group'
 import { SidebarViewHeader } from './sidebar-view-header'
+import { WorkspaceSidebarFooter } from './workspace-sidebar-footer'
+import { WorkspaceSidebarHeader } from './workspace-sidebar-header'
+import { WorkspaceNavigation } from './workspace-navigation'
 
 /**
  * Application sidebar.
@@ -50,9 +52,10 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
+      <WorkspaceSidebarHeader />
       {view && <SidebarViewHeader view={view} />}
 
-      <SidebarContent className='py-2'>
+      <SidebarContent className='gap-2 py-2'>
         <AnimatePresence mode='wait' initial={false}>
           <motion.div
             key={key}
@@ -64,12 +67,12 @@ export function AppSidebar() {
             transition={MOTION_TRANSITION.fast}
             className='flex flex-col'
           >
-            {navGroups.map((props) => (
-              <NavGroup key={props.id || props.title} {...props} />
-            ))}
+            <WorkspaceNavigation groups={navGroups} contextual={Boolean(view)} />
           </motion.div>
         </AnimatePresence>
       </SidebarContent>
+
+      <WorkspaceSidebarFooter />
 
       <SidebarRail />
     </Sidebar>

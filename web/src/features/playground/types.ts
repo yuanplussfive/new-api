@@ -28,10 +28,21 @@ export interface MessageVersion {
   content: string
 }
 
+export interface MessageAttachment {
+  id: string
+  name: string
+  mediaType: string
+  /** Data URL kept in memory; stripped before persisting to localStorage. */
+  url: string
+}
+
 export interface Message {
   key: string
   from: MessageRole
   versions: MessageVersion[]
+  /** Active version index; regenerating appends a version and selects it. */
+  versionIndex?: number
+  attachments?: MessageAttachment[]
   createdAt?: number
   startedAt?: number
   completedAt?: number
@@ -65,61 +76,17 @@ export interface ContentPart {
   }
 }
 
-export interface ChatCompletionRequest {
-  model: string
-  group?: string
-  messages: ChatCompletionMessage[]
-  stream: boolean
-  temperature?: number
-  top_p?: number
-  max_tokens?: number
-  frequency_penalty?: number
-  presence_penalty?: number
-  seed?: number
-}
-
-export interface ChatCompletionChunk {
-  id: string
-  object: string
-  created: number
-  model: string
-  choices: Array<{
-    index: number
-    delta: {
-      role?: MessageRole
-      content?: string
-      reasoning_content?: string | null
-      reasoning?: string | null
-    }
-    finish_reason: string | null
-  }>
-}
-
-export interface ChatCompletionResponse {
-  id: string
-  object: string
-  created: number
-  model: string
-  choices: Array<{
-    index: number
-    message: {
-      role: MessageRole
-      content: string
-      reasoning_content?: string | null
-      reasoning?: string | null
-    }
-    finish_reason: string
-  }>
-  usage?: {
-    prompt_tokens: number
-    completion_tokens: number
-    total_tokens: number
-  }
-}
-
 // Configuration types
+export type PlaygroundApiFormat = 'chat' | 'responses' | 'claude' | 'gemini'
+
 export interface PlaygroundConfig {
   model: string
+  /** Wire protocol used by the next request; persisted with the config. */
+  apiFormat: PlaygroundApiFormat
+  /** Per-model wire protocol overrides, restored when switching models. */
+  apiFormatByModel?: Record<string, PlaygroundApiFormat>
+  /** Last model picked in each group, restored when switching back. */
+  modelByGroup?: Record<string, string>
   group: string
   temperature: number
   top_p: number
@@ -128,7 +95,18 @@ export interface PlaygroundConfig {
   presence_penalty: number
   seed: number | null
   stream: boolean
+  /** Reasoning effort: off keeps the provider default (no thinking request). */
+  thinking: ThinkingLevel
 }
+
+export type ThinkingLevel =
+  | 'off'
+  | 'minimal'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'xhigh'
+  | 'max'
 
 export interface ParameterEnabled {
   temperature: boolean
@@ -143,6 +121,8 @@ export interface ParameterEnabled {
 export interface ModelOption {
   label: string
   value: string
+  /** Icon key configured in model settings; absent means no icon. */
+  icon?: string
 }
 
 export interface GroupOption {

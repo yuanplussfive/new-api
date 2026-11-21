@@ -23,8 +23,9 @@ import { useTranslation } from 'react-i18next'
 import { PromptInputButton } from '@/components/ai-elements/prompt-input'
 import { ModelGroupSelector } from '@/components/model-group-selector'
 
+import { PLAYGROUND_API_FORMATS } from '../../constants'
 import { getInputControlState } from '../../lib'
-import type { GroupOption, ModelOption } from '../../types'
+import type { GroupOption, ModelOption, PlaygroundApiFormat } from '../../types'
 
 type PlaygroundInputControlsProps = {
   disabled?: boolean
@@ -34,6 +35,8 @@ type PlaygroundInputControlsProps = {
   isModelLoading?: boolean
   models: ModelOption[]
   modelValue: string
+  apiFormat: PlaygroundApiFormat
+  onApiFormatChange: (value: PlaygroundApiFormat) => void
   onGroupChange: (value: string) => void
   onModelChange: (value: string) => void
   onStop?: () => void
@@ -49,6 +52,8 @@ export function PlaygroundInputControls({
   isModelLoading = false,
   models,
   modelValue,
+  apiFormat,
+  onApiFormatChange,
   onGroupChange,
   onModelChange,
   onStop,
@@ -69,9 +74,18 @@ export function PlaygroundInputControls({
 
   const renderSelector = () => (
     <ModelGroupSelector
+      className='w-full sm:w-auto'
+      apiFormat={apiFormat}
+      apiFormats={PLAYGROUND_API_FORMATS.map((format) => ({
+        value: format.value,
+        label: t(format.label),
+      }))}
       selectedModel={modelValue}
       models={models}
       onModelChange={onModelChange}
+      onApiFormatChange={(value) =>
+        onApiFormatChange(value as PlaygroundApiFormat)
+      }
       selectedGroup={groupValue}
       groups={groups}
       onGroupChange={onGroupChange}
@@ -82,42 +96,31 @@ export function PlaygroundInputControls({
   const renderSubmitButton = () =>
     shouldShowStop ? (
       <PromptInputButton
-        className='border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/15 font-medium'
+        className='border-line bg-surface-subtle text-destructive hover:bg-surface-hover size-[34px] shrink-0 rounded-full border p-0'
         onClick={onStop}
         variant='secondary'
       >
-        <SquareIcon className='fill-current' size={16} />
-        <span className='hidden sm:inline'>{t('Stop')}</span>
-        <span className='sr-only sm:hidden'>{t('Stop')}</span>
+        <SquareIcon className='fill-current' size={14} />
+        <span className='sr-only'>{t('Stop')}</span>
       </PromptInputButton>
     ) : (
       <PromptInputButton
-        className='bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground h-8 px-3 font-medium shadow-sm'
+        className='bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground size-[34px] shrink-0 rounded-full p-0 shadow-none'
         disabled={!canSubmit}
         type='submit'
         variant='default'
       >
         <SendIcon size={16} />
-        <span className='hidden sm:inline'>{t('Send')}</span>
-        <span className='sr-only sm:hidden'>{t('Send')}</span>
+        <span className='sr-only'>{t('Send')}</span>
       </PromptInputButton>
     )
 
   return (
-    <div className='flex w-full flex-col gap-2.5 md:flex-row md:items-center md:justify-between'>
-      <div className='flex min-w-0 items-center justify-end md:hidden'>
-        {renderSelector()}
-      </div>
+    <div className='flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center'>
+      <div className='flex min-w-0 items-center gap-0.5'>{tools}</div>
 
-      <div className='flex items-center justify-between gap-2 md:justify-start'>
-        {tools}
-        <div className='flex items-center gap-1.5 md:hidden'>
-          {renderSubmitButton()}
-        </div>
-      </div>
-
-      <div className='hidden min-w-0 items-center gap-2 md:flex'>
-        {renderSelector()}
+      <div className='flex min-w-0 items-center gap-1.5 sm:ml-auto'>
+        <div className='min-w-0 flex-1 sm:flex-none'>{renderSelector()}</div>
         {renderSubmitButton()}
       </div>
     </div>

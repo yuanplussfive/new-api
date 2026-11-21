@@ -17,7 +17,6 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
-	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -78,22 +77,15 @@ func Distribute() func(c *gin.Context) {
 					abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorModelNameRequired))
 					return
 				}
-				// check path is /pg/chat/completions
-				if strings.HasPrefix(c.Request.URL.Path, "/pg/chat/completions") {
+				// Every playground entry point carries its target group in the
+				// request body, not in the temporary token.
+				if strings.HasPrefix(c.Request.URL.Path, "/pg/") && modelRequest.Group != "" {
 					usingGroup := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
-					playgroundRequest := &dto.PlayGroundRequest{}
-					err = common.UnmarshalBodyReusable(c, playgroundRequest)
-					if err != nil {
-						abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidPlayground, map[string]any{"Error": err.Error()}))
+					if !service.GroupInUserUsableGroups(usingGroup, modelRequest.Group) && modelRequest.Group != usingGroup {
+						abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied))
 						return
 					}
-					if playgroundRequest.Group != "" {
-						if !service.GroupInUserUsableGroups(usingGroup, playgroundRequest.Group) && playgroundRequest.Group != usingGroup {
-							abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied))
-							return
-						}
-						common.SetContextKey(c, constant.ContextKeyUsingGroup, playgroundRequest.Group)
-					}
+					common.SetContextKey(c, constant.ContextKeyUsingGroup, modelRequest.Group)
 				}
 			}
 		}
@@ -534,15 +526,20 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 		}
 		c.Set("relay_mode", relayMode)
 	}
-	if strings.HasPrefix(c.Request.URL.Path, "/pg/chat/completions") {
-		// playground chat completions
+	if strings.HasPrefix(c.Request.URL.Path, "/pg/") {
+		// Playground entry points share body-level model/group routing. Gemini
+		// supplies the model through PlaygroundGeminiModel before this runs.
 		req, err := getModelFromRequest(c)
 		if err != nil {
 			return nil, false, err
 		}
-		modelRequest.Model = req.Model
+		if req.Model != "" {
+			modelRequest.Model = req.Model
+		}
 		modelRequest.Group = req.Group
-		common.SetContextKey(c, constant.ContextKeyTokenGroup, modelRequest.Group)
+		if modelRequest.Group != "" {
+			common.SetContextKey(c, constant.ContextKeyTokenGroup, modelRequest.Group)
+		}
 	}
 
 	return &modelRequest, shouldSelectChannel, nil

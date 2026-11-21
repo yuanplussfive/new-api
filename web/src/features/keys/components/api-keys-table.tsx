@@ -81,7 +81,7 @@ function ApiKeysMobileSkeleton() {
       {API_KEYS_MOBILE_SKELETON_IDS.map((id) => (
         <div
           key={id}
-          className='border-border/60 bg-card space-y-2 rounded-xl border p-3.5'
+          className='border-line-subtle space-y-2 border-b py-3.5 last:border-b-0'
         >
           <div className='flex items-center justify-between'>
             <Skeleton className='h-4 w-32' />
@@ -114,7 +114,7 @@ function ApiKeysMobileList({
 
   if (!rows.length) {
     return (
-      <div className='rounded-lg border p-8'>
+      <div className='py-10'>
         <Empty className='border-none p-0'>
           <EmptyHeader>
             <EmptyMedia variant='icon'>
@@ -148,7 +148,7 @@ function ApiKeysMobileList({
           <div
             key={row.id}
             className={cn(
-              'border-border/60 bg-card min-w-0 space-y-2 rounded-xl border p-3.5 text-xs leading-4',
+              'border-line-subtle min-w-0 space-y-2 border-b py-3.5 text-xs leading-4 last:border-b-0',
               isDisabledApiKeyRow(apiKey) && DISABLED_ROW_MOBILE
             )}
           >
@@ -339,45 +339,53 @@ export function ApiKeysTable() {
   }, [columnVisibility, table])
 
   return (
-    <DataTablePage
-      table={table}
-      columns={columns}
-      isLoading={isLoading}
-      isFetching={isFetching}
-      emptyTitle={t('No API Keys Found')}
-      emptyDescription={t(
-        'No API keys available. Create your first API key to get started.'
-      )}
-      skeletonKeyPrefix='api-keys-skeleton'
-      applyHeaderSize
-      toolbarProps={{
-        searchPlaceholder: t('Filter by name...'),
-        searchDebounceMs: 500,
-        additionalSearch: (
-          <Input
-            placeholder={t('Filter by API key...')}
-            aria-label={t('Filter by API key...')}
-            value={tokenFilterInput}
-            onChange={(e) => setTokenFilterInput(e.target.value)}
-            className='w-full sm:w-50 lg:w-60'
-          />
-        ),
-        filters: [
-          {
-            columnId: 'status',
-            title: t('Status'),
-            options: API_KEY_STATUS_OPTIONS,
-            singleSelect: true,
-          },
-        ],
-      }}
-      mobile={
-        <ApiKeysMobileList table={table} isLoading={isLoading} now={now} />
-      }
-      getRowClassName={(row) =>
-        isDisabledApiKeyRow(row.original) ? DISABLED_ROW_DESKTOP : undefined
-      }
-      bulkActions={<DataTableBulkActions table={table} />}
-    />
+    <div className='keys-table-scroll min-w-0'>
+      <DataTablePage
+        table={table}
+        columns={columns}
+        isLoading={isLoading}
+        isFetching={isFetching}
+        emptyTitle={t('No API Keys Found')}
+        emptyDescription={t(
+          'No API keys available. Create your first API key to get started.'
+        )}
+        skeletonKeyPrefix='api-keys-skeleton'
+        tableClassName='min-w-[960px]'
+        applyHeaderSize
+        toolbarProps={{
+          collapsibleOnMobile: true,
+          className: 'rounded-none border-0 bg-transparent p-0',
+          searchPlaceholder: t('Filter by name...'),
+          searchDebounceMs: 500,
+          additionalSearch: (
+            <Input
+              placeholder={t('Filter by API key...')}
+              aria-label={t('Filter by API key...')}
+              value={tokenFilterInput}
+              onChange={(e) => setTokenFilterInput(e.target.value)}
+              className='hidden w-full sm:block sm:w-50 lg:w-60'
+            />
+          ),
+          filters: [
+            {
+              columnId: 'status',
+              title: t('Status'),
+              options: API_KEY_STATUS_OPTIONS,
+              singleSelect: true,
+            },
+          ],
+        }}
+        mobile={
+          <ApiKeysMobileList table={table} isLoading={isLoading} now={now} />
+        }
+        getRowClassName={(row) =>
+          isDisabledApiKeyRow(row.original) ? DISABLED_ROW_DESKTOP : undefined
+        }
+        bulkActions={<DataTableBulkActions table={table} />}
+      />
+      <p className='text-content-muted mt-2 text-[10.5px] xl:hidden'>
+        {t('Scroll horizontally to see all columns.')}
+      </p>
+    </div>
   )
 }

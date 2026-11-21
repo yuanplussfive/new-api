@@ -114,6 +114,27 @@ export interface ToolSurchargeItem {
   price: number
 }
 
+export type TimingPhase = 'waiting' | 'thinking' | 'content' | 'tool' | 'other'
+
+export interface TimingSegment {
+  phase: TimingPhase
+  start_ms: number
+  duration_ms: number
+}
+
+export interface LogTimingV2 {
+  version: 2
+  total_ms: number
+  first_response_ms?: number
+  first_content_ms?: number
+  thinking_ms?: number
+  content_ms?: number
+  /** Generation of tool calls, not execution of external tools. */
+  tool_generation_ms?: number
+  tool_calls?: number
+  segments: TimingSegment[]
+}
+
 export interface LogOtherData {
   admin_info?: {
     request_policy?: PolicyEvent[]
@@ -227,6 +248,19 @@ export interface LogOtherData {
   matched_tier?: string
   request_rules?: RequestRuleTrace[]
   usage_facts?: Record<string, string | number>
+  timing?: Partial<Omit<LogTimingV2, 'version'>> & {
+    version?: number
+    // Historical fields remain readable by old fixtures, but are never used
+    // for semantic timing without the validated version-2 contract.
+    dns_ms?: number
+    connect_ms?: number
+    tls_ms?: number
+    send_ms?: number
+    wait_ms?: number
+    thinking_ms?: number
+    tool_ms?: number
+    stream_ms?: number
+  }
   reasoning_effort?: string
   image?: boolean
   image_ratio?: number

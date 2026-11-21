@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ChevronsUpDown, Check, CpuIcon, LayersIcon } from 'lucide-react'
+import { Check, ChevronsUpDown, CpuIcon, LayersIcon, X } from 'lucide-react'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -60,6 +60,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import { formatGroupDetail } from './model-group-selector/group-detail'
@@ -73,6 +74,8 @@ interface ModelOption {
   value: string
   category?: string
   description?: string
+  /** Configured vendor/model icon key from model settings, if any. */
+  icon?: string
 }
 
 interface GroupOption {
@@ -351,7 +354,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = React.memo(
           }
         />
         <PopoverContent
-          className='bg-popover z-40 w-[90vw] max-w-[20em] rounded-lg border p-0 !shadow-none sm:w-[20em]'
+          className='bg-popover z-40 w-[90vw] max-w-[20em] rounded-xl border p-0 shadow-(--surface-shadow) sm:w-[20em]'
           align='start'
           side='bottom'
           sideOffset={4}
@@ -543,6 +546,22 @@ export const GroupSelector: React.FC<GroupSelectorProps> = React.memo(
 GroupSelector.displayName = 'GroupSelector'
 
 // Export combined selector component
+function ModelIconFallback(props: { label: string }) {
+  return (
+    <span
+      aria-hidden='true'
+      className='border-line-subtle bg-surface-subtle text-content-secondary flex size-4 shrink-0 items-center justify-center rounded-[3px] border text-[9px] leading-none font-semibold uppercase'
+    >
+      {props.label.trim().slice(0, 1)}
+    </span>
+  )
+}
+
+export interface ModelGroupSelectorApiFormat {
+  value: string
+  label: string
+}
+
 export interface ModelGroupSelectorProps {
   // Model props
   selectedModel: string
@@ -552,6 +571,10 @@ export interface ModelGroupSelectorProps {
   selectedGroup: string
   groups: GroupOption[]
   onGroupChange: (value: string) => void
+  // Wire protocol (playground-specific; omitted by other callers)
+  apiFormat?: string
+  apiFormats?: ModelGroupSelectorApiFormat[]
+  onApiFormatChange?: (value: string) => void
   // Common props
   className?: string
   disabled?: boolean
@@ -568,6 +591,9 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
   selectedGroup,
   groups,
   onGroupChange,
+  apiFormat,
+  apiFormats,
+  onApiFormatChange,
   className,
   disabled = false,
 }) => {
@@ -582,10 +608,6 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
   const currentModel = useMemo(
     () => models.find((model) => model.value === selectedModel),
     [models, selectedModel]
-  )
-  const currentGroup = useMemo(
-    () => groups.find((group) => group.value === selectedGroup),
-    [groups, selectedGroup]
   )
   const filteredModels = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -610,7 +632,6 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
   const handleModelChange = useCallback(
     (value: string) => {
       onModelChange(value)
-      setOpen(false)
       setSearchQuery('')
     },
     [onModelChange]
@@ -645,6 +666,15 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
     }
   }, [open, selectedGroup, selectedModel])
 
+  let selectedModelIcon: React.ReactNode = null
+  if (currentModel?.icon) {
+    selectedModelIcon = (
+      <span className='flex size-4 shrink-0 items-center justify-center'>
+        {getLobeIcon(currentModel.icon, 16)}
+      </span>
+    )
+  }
+
   const renderTrigger = () => (
     <Button
       aria-expanded={open}
@@ -657,14 +687,12 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
       disabled={disabled}
       role='combobox'
       size='sm'
+      title={currentModel?.label || t('Model')}
       variant='outline'
     >
-      <CpuIcon className='text-muted-foreground size-4 shrink-0' />
+      {selectedModelIcon}
       <span className='min-w-0 truncate text-xs'>
         {currentModel?.label || t('Model')}
-      </span>
-      <span className='bg-muted text-muted-foreground hidden max-w-20 shrink-0 rounded px-1.5 py-0.5 text-[10px] sm:inline-flex'>
-        {currentGroup?.label || t('Group')}
       </span>
       <ChevronsUpDown className='text-muted-foreground ml-auto size-3.5 shrink-0 opacity-60' />
     </Button>
@@ -763,6 +791,13 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
                 }
                 value={model.value}
               >
+                {model.icon ? (
+                  <span className='flex size-4 shrink-0 items-center justify-center'>
+                    {getLobeIcon(model.icon, 16)}
+                  </span>
+                ) : (
+                  <ModelIconFallback label={model.label} />
+                )}
                 <span
                   className={cn(
                     'min-w-0 truncate',
@@ -786,6 +821,39 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
       </CommandList>
     </Command>
   )
+
+  const renderApiFormat = () => {
+    if (!apiFormat || !apiFormats?.length || !onApiFormatChange) return null
+    return (
+      <div className='border-t p-2.5'>
+        <div className='text-muted-foreground px-1 text-[10.5px] font-medium'>
+          {t('API format')}
+        </div>
+        <div className='mt-1.5 grid grid-cols-2 gap-1 sm:grid-cols-3'>
+          {apiFormats.map((format) => {
+            const selected = format.value === apiFormat
+            return (
+              <button
+                aria-pressed={selected}
+                className={cn(
+                  'min-w-0 truncate rounded-md px-2 py-1.5 text-[11.5px] transition-colors',
+                  selected
+                    ? 'bg-primary/10 text-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                )}
+                disabled={disabled}
+                key={format.value}
+                onClick={() => onApiFormatChange(format.value)}
+                type='button'
+              >
+                {format.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   const renderContent = () => (
     <div
@@ -811,12 +879,22 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>{renderTrigger()}</DrawerTrigger>
       <DrawerContent className='flex max-h-[80vh] min-h-[60vh] flex-col'>
-        <DrawerHeader className='pb-3 text-left'>
+        <DrawerHeader className='flex flex-row items-center justify-between pb-3 text-left'>
           <DrawerTitle>{t('Select Model')}</DrawerTitle>
+          <Button
+            aria-label={t('Close')}
+            className='size-7 shrink-0'
+            onClick={() => setOpen(false)}
+            size='icon-sm'
+            variant='ghost'
+          >
+            <X className='size-4' />
+          </Button>
         </DrawerHeader>
         <div className='min-h-0 flex-1 overflow-y-auto px-4 pb-5'>
           {renderContent()}
         </div>
+        {renderApiFormat()}
       </DrawerContent>
     </Drawer>
   ) : (
@@ -832,7 +910,20 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
         side='top'
         sideOffset={8}
       >
+        <div className='flex items-center justify-between border-b px-3 py-2'>
+          <span className='text-[12px] font-medium'>{t('Select Model')}</span>
+          <Button
+            aria-label={t('Close')}
+            className='size-6'
+            onClick={() => setOpen(false)}
+            size='icon-xs'
+            variant='ghost'
+          >
+            <X className='size-3.5' />
+          </Button>
+        </div>
         {renderContent()}
+        {renderApiFormat()}
       </PopoverContent>
     </Popover>
   )

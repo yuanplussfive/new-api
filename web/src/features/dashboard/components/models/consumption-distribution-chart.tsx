@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { VChart } from '@visactor/react-vchart'
-import { AreaChart, BarChart3, WalletCards } from 'lucide-react'
+import { AreaChart, BarChart3, CalendarDays, WalletCards } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -37,6 +37,8 @@ import { useThemeRadiusPx } from '@/lib/theme-radius'
 import type { TimeGranularity } from '@/lib/time'
 import { VCHART_OPTION } from '@/lib/vchart'
 
+import { UsageHeatmap } from './usage-heatmap'
+
 let themeManagerPromise: Promise<
   (typeof import('@visactor/vchart'))['ThemeManager']
 > | null = null
@@ -54,6 +56,7 @@ const CHART_TYPE_ICONS: Record<
 > = {
   bar: BarChart3,
   area: AreaChart,
+  heatmap: CalendarDays,
 }
 
 export function ConsumptionDistributionChart(
@@ -108,7 +111,9 @@ export function ConsumptionDistributionChart(
       ),
     [props.data, props.loading, timeGranularity, t, chartRadius]
   )
-  const spec = chartType === 'bar' ? chartData.spec_line : chartData.spec_area
+  let spec: (typeof chartData)['spec_area'] | null = chartData.spec_area
+  if (chartType === 'bar') spec = chartData.spec_line
+  if (chartType === 'heatmap') spec = null
   const specType = typeof spec?.type === 'string' ? spec.type : chartType
   const chartKey = [
     chartType,
@@ -154,19 +159,25 @@ export function ConsumptionDistributionChart(
         </div>
       </div>
 
-      <div className='h-[300px] p-1.5 sm:h-96 sm:p-2'>
-        {themeReady && spec && (
-          <VChart
-            key={chartKey}
-            spec={{
-              ...spec,
-              theme: resolvedTheme === 'dark' ? 'dark' : 'light',
-              background: 'transparent',
-            }}
-            option={VCHART_OPTION}
-          />
-        )}
-      </div>
+      {chartType === 'heatmap' ? (
+        <div className='p-3 sm:p-4'>
+          <UsageHeatmap embedded />
+        </div>
+      ) : (
+        <div className='h-[300px] p-1.5 sm:h-96 sm:p-2'>
+          {themeReady && spec && (
+            <VChart
+              key={chartKey}
+              spec={{
+                ...spec,
+                theme: resolvedTheme === 'dark' ? 'dark' : 'light',
+                background: 'transparent',
+              }}
+              option={VCHART_OPTION}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }

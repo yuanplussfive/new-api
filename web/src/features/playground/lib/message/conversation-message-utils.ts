@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { MESSAGE_ROLES } from '../../constants'
+import { MESSAGE_ROLES, MESSAGE_STATUS } from '../../constants'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -35,9 +35,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Message } from '../../types'
+import type { Message, MessageAttachment } from '../../types'
 import {
   createLoadingAssistantMessage,
+  createMessageVersion,
   createUserMessage,
   getMessageContent,
   updateCurrentVersionContent,
@@ -56,13 +57,14 @@ type ChatMessageRenderState = {
 
 export function appendUserMessagePair(
   messages: Message[],
-  content: string
+  content: string,
+  attachments?: MessageAttachment[]
 ): Message[] {
   const submittedAt = Date.now()
 
   return [
     ...messages,
-    createUserMessage(content, submittedAt),
+    createUserMessage(content, submittedAt, attachments),
     createLoadingAssistantMessage(submittedAt),
   ]
 }
@@ -71,6 +73,7 @@ export function createRegeneratedMessages(
   messages: Message[],
   messageKey: string
 ): Message[] | null {
+  const submittedAt = Date.now()
   const messageIndex = messages.findIndex(
     (message) => message.key === messageKey
   )
@@ -86,7 +89,28 @@ export function createRegeneratedMessages(
     ]
   }
 
-  return [...messages.slice(0, messageIndex), createLoadingAssistantMessage()]
+  // Regenerating an answer keeps the turn in place and appends a new branch,
+  // so earlier versions stay reachable through the version switcher.
+  const target = messages[messageIndex]
+  const versions = [...target.versions, createMessageVersion('')]
+  const regenerated: Message = {
+    ...target,
+    versions,
+    versionIndex: versions.length - 1,
+    createdAt: submittedAt,
+    startedAt: submittedAt,
+    completedAt: undefined,
+    durationMs: undefined,
+    reasoning: undefined,
+    isReasoningComplete: false,
+    isContentComplete: false,
+    isReasoningStreaming: false,
+    status: MESSAGE_STATUS.LOADING,
+    errorCode: null,
+    sources: undefined,
+  }
+
+  return [...messages.slice(0, messageIndex), regenerated]
 }
 
 export function removeMessageByKey(

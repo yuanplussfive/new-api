@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { memo } from 'react'
+import { cn } from '@/lib/utils'
 
 import {
   Card,
@@ -40,12 +41,12 @@ export const SettingsCard = memo(function SettingsCard({
   className,
 }: SettingsCardProps) {
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
+    <Card className={cn('workspace-settings-section gap-0 rounded-none border-0 bg-transparent py-0 shadow-none ring-0', className)}>
+      <CardHeader className='border-b px-0 pb-4'>
+        <CardTitle className='text-[14px] leading-5 font-semibold tracking-[-0.01em]'>{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className='px-0 py-5'>{children}</CardContent>
     </Card>
   )
 })

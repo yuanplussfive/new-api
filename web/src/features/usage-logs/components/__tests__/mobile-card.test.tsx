@@ -251,14 +251,15 @@ it.each([false, true])(
     expect(
       screen.getByRole('button', { name: /^Time:/ }).parentElement
     ).toHaveClass('flex-col', 'justify-between')
-    expect(
-      within(row as HTMLElement)
-        .getByText('Duration')
-        .closest('.col-start-2')
-    ).not.toBeNull()
-    if (streaming) {
-      expect(within(row as HTMLElement).getByText('First token')).toBeVisible()
-    }
+    const timingLabel = streaming
+      ? 'First response: 58s; Duration: 58s'
+      : 'Duration: 58s'
+    const timing = within(row as HTMLElement).getByLabelText(timingLabel)
+    expect(timing.closest('.col-start-2')).not.toBeNull()
+    expect(timing).toHaveAttribute('tabindex', '0')
+    expect(within(timing).getAllByText('58s')).toHaveLength(streaming ? 2 : 1)
+    expect(within(row as HTMLElement).queryByText('First token')).toBeNull()
+    expect(within(row as HTMLElement).queryByText('Duration')).toBeNull()
   }
 )
 

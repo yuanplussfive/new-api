@@ -21,6 +21,7 @@ import { nanoid } from 'nanoid'
 import { MESSAGE_ROLES, MESSAGE_STATUS } from '../../constants'
 import type {
   Message,
+  MessageAttachment,
   MessageVersion,
   ChatCompletionMessage,
   ContentPart,
@@ -37,10 +38,14 @@ export function createMessageVersion(content: string): MessageVersion {
 }
 
 /**
- * Get current version from message (always returns the first version)
+ * Get the active version of a message. Falls back to the first version.
  */
 export function getCurrentVersion(message: Message): MessageVersion {
-  return message.versions[0] || { id: 'default', content: '' }
+  const index = Math.min(
+    message.versionIndex ?? 0,
+    Math.max(message.versions.length - 1, 0)
+  )
+  return message.versions[index] || { id: 'default', content: '' }
 }
 
 /**
@@ -64,10 +69,16 @@ export function updateCurrentVersionContent(
   message: Message,
   content: string
 ): Message {
-  const currentVersion = getCurrentVersion(message)
+  const index = Math.min(
+    message.versionIndex ?? 0,
+    Math.max(message.versions.length - 1, 0)
+  )
+
   return {
     ...message,
-    versions: [{ ...currentVersion, content }],
+    versions: message.versions.map((version, versionIndex) =>
+      versionIndex === index ? { ...version, content } : version
+    ),
   }
 }
 
@@ -76,13 +87,15 @@ export function updateCurrentVersionContent(
  */
 export function createUserMessage(
   content: string,
-  createdAt: number = Date.now()
+  createdAt: number = Date.now(),
+  attachments?: MessageAttachment[]
 ): Message {
   return {
     key: nanoid(),
     from: MESSAGE_ROLES.USER,
     versions: [createMessageVersion(content)],
     createdAt,
+    attachments,
   }
 }
 
@@ -107,56 +120,30 @@ export function createLoadingAssistantMessage(
 }
 
 /**
- * Build message content with optional images
- */
-export function buildMessageContent(
-  text: string,
-  imageUrls: string[] = []
-): string | ContentPart[] {
-  const validImages = imageUrls.filter((url) => url.trim() !== '')
-
-  if (validImages.length === 0) {
-    return text
-  }
-
-  const parts: ContentPart[] = [
-    {
-      type: 'text',
-      text: text || '',
-    },
-    ...validImages.map((url) => ({
-      type: 'image_url' as const,
-      image_url: { url: url.trim() },
-    })),
-  ]
-
-  return parts
-}
-
-/**
- * Extract text content from message content
- */
-export function getTextContent(content: string | ContentPart[]): string {
-  if (typeof content === 'string') {
-    return content
-  }
-
-  if (Array.isArray(content)) {
-    const textPart = content.find((part) => part.type === 'text')
-    return textPart?.text || ''
-  }
-
-  return ''
-}
-
-/**
  * Format message for API request
  */
 export function formatMessageForAPI(message: Message): ChatCompletionMessage {
   const currentVersion = getCurrentVersion(message)
+  const attachments = message.attachments ?? []
+
+  if (attachments.length === 0) {
+    return {
+      role: message.from,
+      content: currentVersion.content,
+    }
+  }
+
+  const parts: ContentPart[] = []
+  if (currentVersion.content.trim()) {
+    parts.push({ type: 'text', text: currentVersion.content })
+  }
+  for (const attachment of attachments) {
+    parts.push({ type: 'image_url', image_url: { url: attachment.url } })
+  }
+
   return {
     role: message.from,
-    content: currentVersion.content,
+    content: parts,
   }
 }
 

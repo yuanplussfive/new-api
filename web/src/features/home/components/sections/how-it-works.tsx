@@ -16,75 +16,52 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Settings, Zap, BarChart3 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { AnimateInView } from '@/components/animate-in-view'
+import { PublicSection } from '@/components/public-section'
+import { SectionHeading } from '@/components/section-heading'
 
 export function HowItWorks() {
   const { t } = useTranslation()
-
   const steps = [
     {
-      num: '1',
       title: t('Configure'),
-      desc: t(
-        'Add your API keys, set up channels and configure access permissions'
-      ),
-      icon: <Settings className='size-6' strokeWidth={1.5} />,
+      description: t('Add upstream API keys and configure routing rules'),
     },
     {
-      num: '2',
       title: t('Connect'),
-      desc: t(
+      description: t(
         'Connect through OpenAI, Claude, Gemini, and other compatible API routes'
       ),
-      icon: <Zap className='size-6' strokeWidth={1.5} />,
     },
     {
-      num: '3',
       title: t('Monitor'),
-      desc: t('Track usage, costs and performance with real-time analytics'),
-      icon: <BarChart3 className='size-6' strokeWidth={1.5} />,
+      description: t(
+        'Track usage, costs and performance with real-time analytics'
+      ),
     },
   ]
 
   return (
-    <section className='border-border/40 relative z-10 border-t px-6 py-24 md:py-32'>
-      <div className='mx-auto max-w-6xl'>
-        <AnimateInView className='mb-16 text-center md:mb-20'>
-          <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-            {t('How It Works')}
-          </p>
-          <h2 className='text-2xl font-bold tracking-tight md:text-3xl'>
-            {t('Three steps to get started')}
-          </h2>
-        </AnimateInView>
-
-        <div className='grid gap-8 md:grid-cols-3 md:gap-12'>
-          {steps.map((step, i) => (
-            <AnimateInView
-              key={step.num}
-              delay={i * 150}
-              animation='fade-up'
-              className='relative flex flex-col items-center text-center'
+    <PublicSection bordered>
+      <div className='grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:gap-24'>
+        <SectionHeading title={t('Three steps to get started')} />
+        <ol className='divide-line-subtle divide-y'>
+          {steps.map((step) => (
+            <li
+              key={step.title}
+              className='grid gap-1.5 py-4 first:pt-0 last:pb-0 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-6'
             >
-              <div className='relative mb-6'>
-                <div className='text-muted-foreground border-border/50 bg-muted/30 flex size-16 items-center justify-center rounded-2xl border transition-colors'>
-                  {step.icon}
-                </div>
-                <div className='bg-foreground text-background absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full text-xs font-bold'>
-                  {step.num}
-                </div>
-              </div>
-              <h3 className='mb-2 text-base font-semibold'>{step.title}</h3>
-              <p className='text-muted-foreground max-w-[240px] text-sm leading-relaxed'>
-                {step.desc}
+              <h3 className='text-content-strong text-[14px] font-medium'>
+                {step.title}
+              </h3>
+              <p className='text-content-secondary text-[14px] leading-[1.75]'>
+                {step.description}
               </p>
-            </AnimateInView>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
-    </section>
+    </PublicSection>
   )
 }

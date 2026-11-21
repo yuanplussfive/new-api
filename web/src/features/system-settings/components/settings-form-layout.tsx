@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { ComponentProps, ReactNode } from 'react'
+import { useId, type ComponentProps, type ReactNode } from 'react'
 
 import { FormItem } from '@/components/ui/form'
 import { Label } from '@/components/ui/label'
@@ -46,20 +46,13 @@ type SettingsSwitchFieldProps = SettingsSwitchRowProps & {
 }
 
 const settingsSwitchRowClassName =
-  'flex min-w-0 flex-row items-center justify-between gap-4 py-2.5'
+  'border-line-subtle flex min-h-12 min-w-0 items-center justify-between gap-6 border-b py-2.5 last:border-b-0'
 
 export function SettingsFormGrid(props: SettingsFormGridProps) {
   return (
     <div
       data-settings-form-span='full'
-      className={cn(
-        'grid min-w-0 gap-x-5 gap-y-6 lg:grid-cols-2',
-        'lg:[&>[data-settings-form-span=full]]:col-span-2',
-        '[&>[data-slot=form-item]]:min-w-0',
-        'lg:[&>[data-slot=form-item]:has(textarea)]:col-span-2',
-        'lg:[&>[data-slot=form-item]:has([data-slot=switch])]:col-span-2',
-        props.className
-      )}
+      className={cn('flex min-w-0 flex-col gap-5 md:gap-0', props.className)}
     >
       {props.children}
     </div>
@@ -88,6 +81,7 @@ export function SettingsSwitchItem({
   return (
     <FormItem
       data-settings-form-span='full'
+      data-settings-switch-row
       className={cn(settingsSwitchRowClassName, className)}
       {...props}
     />
@@ -117,26 +111,27 @@ export function SettingsSwitchField({
   className,
   ...props
 }: SettingsSwitchFieldProps) {
+  const generatedId = useId()
+  const id = controlId ?? generatedId
+
   return (
     <SettingsSwitchRow className={className} {...props}>
       <SettingsSwitchContent>
-        <Label htmlFor={controlId} className='text-sm font-medium'>
+        <Label htmlFor={id} className='text-[13px] leading-5 font-medium'>
           {label}
         </Label>
         {description ? (
           <p
-            id={controlId ? `${controlId}-description` : undefined}
-            className='text-muted-foreground text-xs'
+            id={`${id}-description`}
+            className='text-muted-foreground text-xs leading-5'
           >
             {description}
           </p>
         ) : null}
       </SettingsSwitchContent>
       <Switch
-        id={controlId}
-        aria-describedby={
-          controlId && description ? `${controlId}-description` : undefined
-        }
+        id={id}
+        aria-describedby={description ? `${id}-description` : undefined}
         checked={checked}
         onCheckedChange={onCheckedChange}
         disabled={disabled}
@@ -147,7 +142,12 @@ export function SettingsSwitchField({
 
 export function SettingsSwitchContent(props: SettingsFormGridProps) {
   return (
-    <div className={cn('min-w-0 space-y-0.5', props.className)}>
+    <div
+      className={cn(
+        'min-w-0 space-y-0.5 break-words [&_[data-slot=form-description]]:text-xs [&_[data-slot=form-description]]:leading-5 [&_[data-slot=form-label]]:text-[13px] [&_[data-slot=form-label]]:leading-5',
+        props.className
+      )}
+    >
       {props.children}
     </div>
   )
@@ -160,10 +160,7 @@ export function SettingsControlGroup({
   return (
     <div
       data-settings-form-span='full'
-      className={cn(
-        'bg-muted/20 min-w-0 space-y-3 rounded-xl border px-3 py-2.5',
-        className
-      )}
+      className={cn('min-w-0 space-y-1', className)}
       {...props}
     />
   )
@@ -175,7 +172,7 @@ export function SettingsControlChildren({
 }: SettingsControlChildrenProps) {
   return (
     <div
-      className={cn('border-border/70 ml-2 min-w-0 border-l pl-3', className)}
+      className={cn('border-line-subtle ml-2 min-w-0 border-l pl-3', className)}
       {...props}
     />
   )
@@ -184,16 +181,7 @@ export function SettingsControlChildren({
 export function SettingsForm({ className, ...props }: ComponentProps<'form'>) {
   return (
     <form
-      className={cn(
-        'grid min-w-0 gap-x-5 gap-y-6 lg:grid-cols-2',
-        'lg:[&>*:not([data-slot=form-item])]:col-span-2',
-        'lg:[&>[data-settings-form-span=full]]:col-span-2',
-        'lg:[&>[data-slot=alert]]:col-span-2',
-        '[&>[data-slot=form-item]]:min-w-0',
-        'lg:[&>[data-slot=form-item]:has(textarea)]:col-span-2',
-        'lg:[&>[data-slot=form-item]:has([data-slot=switch])]:col-span-2',
-        className
-      )}
+      className={cn('flex min-w-0 flex-col gap-6 md:gap-0', className)}
       {...props}
     />
   )

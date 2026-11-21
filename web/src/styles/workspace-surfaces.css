@@ -1,0 +1,157 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+/* Collection and settings surfaces share one visual hierarchy.
+ *
+ * Sizes intentionally live in the table/control components now: the previous
+ * blanket 11px/12px overrides applied to every business list and made dense
+ * pages read as one flat texture. */
+@layer components {
+  .workspace-shell [data-slot='data-workbench'] {
+    gap: 0; overflow: hidden; border: 1px solid var(--line);
+    border-radius: 12px; background: var(--surface-panel);
+  }
+  .workspace-shell [data-slot='data-workbench-toolbar'] {
+    padding: 0.875rem 1rem; border-bottom: 1px solid var(--line-subtle);
+    background: var(--surface-panel);
+  }
+  .workspace-shell [data-slot='data-workbench'] > [data-slot='data-table-surface'] { border: 0; border-radius: 0; }
+  .workspace-shell [data-page-layout='settings'] .workspace-page-content {
+    border-top: 1px solid var(--line-subtle); padding-top: 1.5rem;
+    background: var(--surface-canvas);
+  }
+  .workspace-settings-section > [data-slot='card-header'] { border-radius: 0; }
+  .workspace-settings-section [data-slot='form-description'] { font-size: 12.5px; line-height: 1.65; }
+  .workspace-shell [data-slot='titled-card'] > [data-slot='card-header'] { padding: 1rem 1.25rem; }
+  .workspace-shell [data-slot='titled-card'] [data-slot='card-title'] { font-size: 14.5px; line-height: 1.5; }
+  .workspace-shell [data-slot='titled-card'] [data-slot='card-description'] { margin-top: 2px; font-size: 12.5px; }
+  @media (max-width: 640px) { .workspace-shell [data-slot='data-workbench-toolbar'] { padding: 0.75rem; } }
+}
+
+/* ── Data workbench surface ──────────────────────────────────────────────
+ * List pages are one workbench: toolbar strip, table body and (in the page
+ * footer) pagination. The toolbar and table do not draw their own frames, so
+ * the page reads as a single surface instead of stacked cards. */
+[data-slot='data-workbench'] {
+  gap: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+[data-slot='data-workbench'] [data-slot='data-workbench-toolbar'] {
+  padding: 0.8125rem 1rem;
+  border-bottom: 1px solid var(--line-subtle);
+  background: transparent;
+}
+[data-slot='data-workbench'] [data-slot='data-workbench-toolbar'] > * {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+[data-slot='data-workbench'] [data-slot='data-table-surface'] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* ── Dashboard workbench surface ─────────────────────────────────────────
+ * The overview is one continuous surface: the console band, the three
+ * columns and the panel rows are separated by hairlines, not by gaps or
+ * repeated card borders. Panels keep their own padding and inner dividers,
+ * so only the outer frame is neutralised here. */
+[data-dashboard-surface] [data-dashboard-panel] {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+[data-dashboard-surface] > [data-console] {
+  border: 0;
+  border-radius: 0;
+}
+/* Keep desktop pagination and editor actions in view. Other tabs, JSON mode
+ * and mobile continue to scroll with the settings page. */
+@media (min-width: 1280px) and (min-height: 620px) {
+  .workspace-page-content:has([data-model-pricing-tabs] [data-slot='tabs-content']:not([data-hidden]) [data-model-prices]) {
+    container-type: size;
+  }
+  [data-model-pricing-tabs]:has([data-slot='tabs-content']:not([data-hidden]) [data-model-prices]) {
+    block-size: 100cqh;
+  }
+}
+
+/* Only simple fields opt into two columns. Composite editors and dedicated
+ * switch rows own their layout (including nested text and trailing actions). */
+@media (min-width: 768px) {
+  .workspace-shell [data-page-layout='settings'] [data-slot='form-item']:not([data-settings-switch-row], [data-settings-field-layout='stacked'] *):not([class*='grid-cols-'] > [data-slot='form-item']):has(> [data-slot='form-label']):has(> [data-slot='form-control']):not(:has([role='switch'], [role='radiogroup'], textarea, [contenteditable], [data-slot='form-item'])) {
+    display: grid;
+    grid-template-columns: minmax(0, 34rem) minmax(13.75rem, 20rem);
+    justify-content: start;
+    grid-template-areas:
+      'label control'
+      'description control'
+      'message control';
+    column-gap: 2rem;
+    row-gap: 0.125rem;
+    align-items: center;
+    padding-block: 0.875rem;
+    border-bottom: 1px solid var(--line-subtle);
+
+    &:last-child {
+      border-bottom: 0;
+    }
+    > [data-slot='form-label'] {
+      grid-area: label;
+      font-size: 13px;
+      line-height: 1.25rem;
+    }
+    > [data-slot='form-control'] {
+      grid-area: control;
+      min-width: 0;
+    }
+    > [data-slot='form-description'] {
+      grid-area: description;
+      font-size: 12px;
+      line-height: 1.25rem;
+    }
+    > [data-slot='form-message'] {
+      grid-area: message;
+      font-size: 12px;
+    }
+    > :not([data-slot^='form-']) {
+      grid-column: 1 / -1;
+    }
+  }
+  /* Fields that share a responsive column grid stack inside their own column;
+   * pairing label and control across a half-width cell misaligns them. */
+  .workspace-shell [data-page-layout='settings'] [class*='grid-cols-'] > [data-slot='form-item'] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'label'
+      'description'
+      'control'
+      'message';
+    row-gap: 0.4375rem;
+    align-items: start;
+    padding-block: 0.5rem;
+    border-bottom: 0;
+  }
+}

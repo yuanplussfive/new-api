@@ -47,7 +47,7 @@ import { cn } from '@/lib/utils'
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = '13rem'
+const SIDEBAR_WIDTH = '15.5rem'
 const SIDEBAR_WIDTH_MOBILE = '17rem'
 const SIDEBAR_WIDTH_ICON = '2.75rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
@@ -322,9 +322,9 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
   )
 }
 
-function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
+function SidebarInset({ className, ...props }: React.ComponentProps<'div'>) {
   return (
-    <main
+    <div
       data-slot='sidebar-inset'
       className={cn(
         'bg-background relative flex w-full flex-1 flex-col md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',

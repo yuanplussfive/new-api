@@ -38,7 +38,6 @@ For commercial licensing, please contact support@quantumnous.com
 import {
   Copy,
   Check,
-  Route,
   Settings2,
   AlertTriangle,
   Headphones,
@@ -50,8 +49,10 @@ import {
   Info,
   LogIn,
 } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
+import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
@@ -62,8 +63,9 @@ import { BILLING_PRICING_VARS } from '@/features/pricing/lib/billing-expr'
 import { pluginUsageSchema } from '@/features/pricing/lib/plugin-pricing'
 import { PolicyDecisionRecord } from '@/features/system-settings/request-policies/decision-record'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+import { toIntlLocale } from '@/i18n/languages'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
-import { formatLogQuota, formatTokens, formatUseTime } from '@/lib/format'
+import { formatLogQuota, formatTokens } from '@/lib/format'
 import { translateServerText } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 
@@ -85,14 +87,17 @@ import {
   renderLogContent,
 } from '../../lib/format'
 import { buildQuotaAuditOperation } from '../../lib/quota-audit-operation'
+import { formatTimingMilliseconds, getRequestTiming } from '../../lib/timing'
 import {
   getLogTypeConfig,
   isPerCallBilling,
   isTimingLogType,
 } from '../../lib/utils'
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
+import { LogCostDisplay } from '../log-cost-display'
 import { ResponseModelDetails } from '../model-badge'
 import { PluginAuthorLink } from '../plugin-author-link'
+import { LogTimingTimeline } from '../timing-timeline'
 import { DetailRow, DetailSection } from './log-detail-layout'
 
 // Maps a channel-update changed-field token (as recorded by the backend audit)
@@ -518,7 +523,8 @@ interface DetailsDialogProps {
 }
 
 export function DetailsDialog(props: DetailsDialogProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const timingLocale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
   const other = parseLogOther(props.log.other)
   const typeConfig = getLogTypeConfig(props.log.type)
@@ -543,6 +549,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
   )
   const hasAudioTokens = other?.ws || other?.audio
   const showTiming = isTimingLogType(props.log.type)
+  const requestTiming = getRequestTiming(
+    props.log.use_time,
+    other?.frt,
+    props.log.is_stream,
+    other?.timing
+  )
   const showAdminIp =
     !!props.log.ip && (showTiming || (props.isAdmin && isTopup))
   const adminInfo = other?.admin_info
@@ -686,7 +698,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
       contentClassName={cn(
         'min-w-0 overflow-hidden',
         'max-sm:max-h-(--dialog-available-height) max-sm:w-[calc(100vw-1.5rem)] max-sm:max-w-[calc(100vw-1.5rem)] max-sm:p-4',
-        isTieredBilling ? 'sm:max-w-4xl lg:max-w-5xl' : 'sm:max-w-lg'
+        isTieredBilling ? 'sm:max-w-4xl lg:max-w-5xl' : 'sm:max-w-2xl'
       )}
       headerClassName='max-sm:gap-1'
       titleClassName='flex items-center gap-2 text-base'
@@ -694,7 +706,56 @@ export function DetailsDialog(props: DetailsDialogProps) {
       contentHeight='min(72dvh, 720px)'
       bodyClassName='pr-2 sm:pr-4'
     >
-      <div className='w-full max-w-full min-w-0 space-y-2.5 overflow-x-hidden py-1 sm:space-y-3'>
+      <div className='w-full max-w-full min-w-0 overflow-x-hidden py-1 sm:columns-2 sm:gap-x-8 [&>*]:mb-4 [&>*]:break-inside-avoid'>
+        {props.log.model_name && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className='border-line-subtle bg-line-subtle grid grid-cols-2 gap-px border [column-span:all] sm:grid-cols-4'
+          >
+            <div className='bg-background min-w-0 px-3 py-2'>
+              <div className='text-content-muted text-[10px]'>{t('Cost')}</div>
+              <div className='mt-0.5 min-w-0 truncate text-[13px] font-medium'>
+                <LogCostDisplay quota={props.log.quota} other={other} />
+              </div>
+            </div>
+            <div className='bg-background min-w-0 px-3 py-2'>
+              <div className='text-content-muted text-[10px]'>Token</div>
+              <div className='mt-0.5 truncate font-mono text-[13px] tabular-nums'>
+                {formatTokens(props.log.prompt_tokens)} /{' '}
+                {formatTokens(props.log.completion_tokens)}
+              </div>
+            </div>
+            <div className='bg-background min-w-0 px-3 py-2'>
+              <div className='text-content-muted text-[10px]'>
+                {t('Duration')}
+              </div>
+              <div className='mt-0.5 truncate font-mono text-[13px] tabular-nums'>
+                {formatTimingMilliseconds(requestTiming.totalMs, timingLocale)}
+              </div>
+            </div>
+            <div className='bg-background min-w-0 px-3 py-2'>
+              <div className='text-content-muted text-[10px]'>{t('Model')}</div>
+              <div className='mt-0.5 truncate font-mono text-[13px]'>
+                {props.log.model_name}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {showTiming && requestTiming.totalMs !== null && (
+          <div className='[column-span:all]'>
+            <LogTimingTimeline
+              useTimeSec={props.log.use_time}
+              frtMs={other?.frt}
+              isStream={props.log.is_stream}
+              timing={other?.timing}
+              variant='full'
+            />
+          </div>
+        )}
+
         {/* Overview section - key identifiers */}
         <div className='min-w-0 space-y-1'>
           {props.log.request_id && (
@@ -763,7 +824,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
             />
           )}
 
-          {showTiming && props.log.use_time > 0 && (
+          {showTiming && requestTiming.totalMs !== null && (
             <DetailRow
               label={t('Response Time')}
               value={
@@ -772,28 +833,36 @@ export function DetailsDialog(props: DetailsDialogProps) {
                     'font-medium',
                     timingTextColorClass(
                       getResponseTimeColor(
-                        props.log.use_time,
+                        requestTiming.totalMs / 1000,
                         props.log.completion_tokens
                       )
                     )
                   )}
                 >
-                  {formatUseTime(props.log.use_time)}
-                  {props.log.is_stream &&
-                    other?.frt != null &&
-                    other.frt > 0 && (
-                      <span
-                        className={cn(
-                          'font-normal',
-                          timingTextColorClass(
-                            getFirstResponseTimeColor(other.frt / 1000)
+                  {formatTimingMilliseconds(
+                    requestTiming.totalMs,
+                    timingLocale
+                  )}
+                  {requestTiming.firstResponseMs !== undefined && (
+                    <span
+                      className={cn(
+                        'font-normal',
+                        timingTextColorClass(
+                          getFirstResponseTimeColor(
+                            requestTiming.firstResponseMs / 1000
                           )
-                        )}
-                      >
-                        {' '}
-                        (FRT: {formatUseTime(other.frt / 1000)})
-                      </span>
-                    )}
+                        )
+                      )}
+                    >
+                      {' '}
+                      ({t('First response')}:{' '}
+                      {formatTimingMilliseconds(
+                        requestTiming.firstResponseMs,
+                        timingLocale
+                      )}
+                      )
+                    </span>
+                  )}
                 </span>
               }
             />
@@ -803,49 +872,37 @@ export function DetailsDialog(props: DetailsDialogProps) {
         {/* Request conversion (admin only, not for refund) */}
         {showConversion && (
           <DetailSection label={t('Request Conversion')}>
-            <div className='relative min-w-0'>
-              <Button
-                variant='ghost'
-                size='sm'
-                className='absolute top-0 right-0 h-5 w-5 p-0'
-                onClick={() => copyToClipboard(conversionLabel)}
-                title={t('Copy to clipboard')}
-                aria-label={t('Copy to clipboard')}
-              >
-                {copiedText === conversionLabel ? (
-                  <Check className='size-3 text-green-600' />
-                ) : (
-                  <Copy className='size-3' />
-                )}
-              </Button>
-              <div className='min-w-0 space-y-1 pr-6'>
-                {other?.request_path && (
-                  <DetailRow
-                    label={t('Path')}
-                    value={other.request_path}
-                    mono
-                  />
-                )}
-                <div className='flex min-w-0 items-center gap-1.5 text-xs'>
-                  <Route
-                    className='text-muted-foreground size-3'
-                    aria-hidden='true'
-                  />
-                  <span className='min-w-0 break-all sm:wrap-break-word'>
-                    {conversionLabel}
+            {other?.request_path && (
+              <DetailRow
+                label={t('Path')}
+                value={
+                  <span className='inline-flex min-w-0 items-center gap-1.5'>
+                    <span className='min-w-0 break-all'>
+                      {other.request_path}
+                    </span>
+                    <CopyButton
+                      value={other.request_path}
+                      variant='ghost'
+                      size='icon'
+                      aria-label={t('Copy to clipboard')}
+                      tooltip={t('Copy to clipboard')}
+                    />
                   </span>
-                </div>
-              </div>
-            </div>
+                }
+                mono
+              />
+            )}
+            <DetailRow
+              label={t('Native format')}
+              value={conversionLabel}
+              mono
+            />
           </DetailSection>
         )}
 
         {/* Quota saturation marker (admin only) */}
         {props.isAdmin && adminInfo?.request_policy?.length ? (
-          <DetailSection
-            label={t('Request policy decisions')}
-            icon={<Route className='size-4' />}
-          >
+          <DetailSection label={t('Request policy decisions')}>
             <PolicyDecisionRecord events={adminInfo.request_policy} />
           </DetailSection>
         ) : null}

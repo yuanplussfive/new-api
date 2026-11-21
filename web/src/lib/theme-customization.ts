@@ -89,7 +89,7 @@ export type ContentLayout = 'full' | 'centered'
  *
  * - `default` — use the browser's sans-serif unless the active preset
  *   specifies its own font (Anthropic uses serif).
- * - `sans` — explicitly use Public Sans.
+ * - `sans` — explicitly use Nunito Sans.
  * - `serif` — use Lora + CJK fallbacks. Monospace contexts keep their
  *   own family via Tailwind preflight and `.font-mono`.
  */

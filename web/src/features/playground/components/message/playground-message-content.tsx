@@ -23,7 +23,6 @@ import {
   CodeBlock,
   CodeBlockCopyButton,
 } from '@/components/ai-elements/code-block'
-import { Loader } from '@/components/ai-elements/loader'
 import { MessageContent } from '@/components/ai-elements/message'
 import {
   Reasoning,
@@ -31,7 +30,6 @@ import {
   ReasoningTrigger,
 } from '@/components/ai-elements/reasoning'
 import { Response } from '@/components/ai-elements/response'
-import { Shimmer } from '@/components/ai-elements/shimmer'
 import {
   Source,
   Sources,
@@ -106,6 +104,20 @@ export function PlaygroundMessageContent({
         </Sources>
       )}
 
+      {message.attachments && message.attachments.length > 0 && (
+        <div className='mb-2 flex flex-wrap gap-2'>
+          {message.attachments.map((attachment) => (
+            <img
+              key={attachment.id}
+              src={attachment.url}
+              alt={attachment.name}
+              loading='lazy'
+              className='border-line size-20 border object-cover'
+            />
+          ))}
+        </div>
+      )}
+
       {hasReasoning && (
         <Reasoning
           defaultOpen
@@ -118,11 +130,17 @@ export function PlaygroundMessageContent({
       )}
 
       {showLoader && (
-        <div className='flex items-center gap-2 py-2'>
-          <Loader />
-          <Shimmer className='text-sm' duration={1}>
-            {t('Responding...')}
-          </Shimmer>
+        <div
+          className='flex h-[34px] items-center gap-1.5'
+          aria-label={t('Responding...')}
+        >
+          {[0, 1, 2].map((index) => (
+            <span
+              key={index}
+              className='bg-content-muted size-1.5 animate-pulse rounded-full'
+              style={{ animationDelay: `${index * 120}ms` }}
+            />
+          ))}
         </div>
       )}
 
@@ -156,6 +174,13 @@ export function PlaygroundMessageContent({
               className={cn(getMessageContentStyles())}
             >
               <Response final={isMessageFinal}>{displayContent}</Response>
+              {!isMessageFinal && (
+                <span
+                  aria-hidden='true'
+                  data-testid='streaming-caret'
+                  className='bg-foreground/70 ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] animate-pulse align-baseline'
+                />
+              )}
             </MessageContent>
           )}
           <MessageMetadata alignment={alignment} message={message} />

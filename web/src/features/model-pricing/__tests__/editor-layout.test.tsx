@@ -349,16 +349,13 @@ it.each(['default', 'unset'] as const)(
       </QueryClientProvider>
     )
     const workspace = screen.getByRole('region', { name: 'Model prices' })
-    expect(workspace).toHaveClass(
-      'flex-1',
-      'min-h-0',
-      'grid-rows-[minmax(0,1fr)]'
-    )
+    expect(workspace).toHaveClass('flex-1', 'min-h-0')
     await waitFor(() => expect(client.isFetching()).toBe(0))
     if (variant === 'default') {
       const toggle = screen.getByRole('switch', { name: 'Expose ratio API' })
-      expect(screen.getByRole('banner')).toContainElement(toggle)
-      const help = within(screen.getByRole('banner')).getByRole('button', {
+      const pricingActions = screen.getByRole('group', { name: 'Model prices' })
+      expect(pricingActions).toContainElement(toggle)
+      const help = within(pricingActions).getByRole('button', {
         name: 'Learn more',
       })
       await user.click(help)

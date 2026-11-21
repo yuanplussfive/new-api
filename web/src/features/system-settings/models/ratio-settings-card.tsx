@@ -36,10 +36,8 @@ import {
   type ModelPricingConfig,
 } from '@/features/model-pricing/api'
 import { pricingOptions } from '@/features/model-pricing/pricing'
-import { useMediaQuery } from '@/hooks'
 import { handleServerError } from '@/lib/handle-server-error'
 
-import { SettingsPageTitleStatusPortal } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { positiveIntegerSchema } from '../utils/numeric-field'
@@ -173,7 +171,6 @@ export function RatioSettingsCard({
   visibleTabs = ['models', 'groups', 'tool-prices', 'upstream-sync'],
 }: RatioSettingsCardProps) {
   const { t } = useTranslation()
-  const isMobile = useMediaQuery('(max-width: 639px)')
   const updateOption = useUpdateOption()
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -462,14 +459,6 @@ export function RatioSettingsCard({
     'tool-prices': 'Tool prices',
     'upstream-sync': 'Upstream price sync',
   }
-  const tabsGridClass =
-    {
-      1: 'grid-cols-1',
-      2: 'grid-cols-2',
-      3: 'grid-cols-3',
-      4: 'grid-cols-4',
-      5: 'grid-cols-5',
-    }[visibleTabs.length] ?? 'grid-cols-4'
   const defaultTab = visibleTabs[0] ?? 'models'
 
   const renderTabContent = (tab: RatioTabId) => {
@@ -526,19 +515,9 @@ export function RatioSettingsCard({
   }
 
   const renderTabSwitcher = () => (
-    <TabsList
-      className={
-        isMobile
-          ? 'flex w-full justify-start overflow-x-auto'
-          : `grid w-fit max-w-full ${tabsGridClass}`
-      }
-    >
+    <TabsList variant='line' className='w-max min-w-full justify-start gap-4'>
       {visibleTabs.map((tab) => (
-        <TabsTrigger
-          key={tab}
-          value={tab}
-          className={isMobile ? 'flex-none px-3' : undefined}
-        >
+        <TabsTrigger key={tab} value={tab} className='flex-none px-1'>
           {t(tabLabels[tab])}
         </TabsTrigger>
       ))}
@@ -559,17 +538,20 @@ export function RatioSettingsCard({
           {renderTabContent(defaultTab)}
         </SettingsSection>
       ) : (
-        <Tabs defaultValue={defaultTab} className='h-full min-h-0 gap-6'>
-          {/* The phone title row is too narrow for the tabs. */}
-          {isMobile ? (
-            renderTabSwitcher()
-          ) : (
-            <SettingsPageTitleStatusPortal>
-              {renderTabSwitcher()}
-            </SettingsPageTitleStatusPortal>
-          )}
+        <Tabs
+          data-model-pricing-tabs
+          defaultValue={defaultTab}
+          className='min-h-0 gap-4'
+        >
+          <div className='border-line-subtle min-w-0 shrink-0 overflow-x-auto border-b pb-1.5'>
+            {renderTabSwitcher()}
+          </div>
 
-          <SettingsSection title={t(titleKey)} className='min-h-0 flex-1'>
+          <SettingsSection
+            title={t(titleKey)}
+            titleProps={{ className: 'sr-only' }}
+            className='min-h-0 flex-1'
+          >
             {visibleTabs.map((tab) => (
               <TabsContent
                 key={tab}

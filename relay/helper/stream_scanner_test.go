@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -678,6 +679,50 @@ func TestNewStreamScannerCallerLimit(t *testing.T) {
 	require.True(t, scanner.Scan())
 	assert.Equal(t, "data: ok", scanner.Text())
 	require.NoError(t, scanner.Err())
+}
+
+func TestStreamScannerHandlerTimingOmitsEmptyToolsAndFreezesAtResponseEnd(t *testing.T) {
+	frames := []string{
+		`{"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning_content":"","tool_calls":null,"function_call":null}}]}`,
+		`{"choices":[{"index":0,"delta":{"content":"deliberately-private answer","reasoning_content":"","tool_calls":[],"function_call":{}}}]}`,
+		`{"choices":[{"index":0,"delta":{"content":" continued","tool_calls":[{}]}}]}`,
+		`{"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`,
+		`{"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2}}`,
+	}
+	body := "data: " + strings.Join(frames, "\n\ndata: ") + "\n\ndata: [DONE]\n\n"
+	c, resp, info := setupStreamTest(t, strings.NewReader(body))
+	info.IsStream = true
+	info.DisablePing = true
+	info.StartTime = time.Now()
+	var received []string
+
+	StreamScannerHandler(c, resp, info, func(data string, _ *StreamResult) {
+		received = append(received, data)
+	})
+
+	require.Equal(t, frames, received, "timing observation must not rewrite forwarded payloads")
+	require.NotNil(t, info.Timing)
+	snapshot := info.Timing.Snapshot()
+	encoded, err := common.Marshal(snapshot)
+	require.NoError(t, err)
+	var timing struct {
+		Version        int      `json:"version"`
+		FirstContentMs *float64 `json:"first_content_ms"`
+		ThinkingMs     float64  `json:"thinking_ms"`
+		ToolMs         float64  `json:"tool_generation_ms"`
+		ToolCalls      int      `json:"tool_calls"`
+	}
+	require.NoError(t, common.Unmarshal(encoded, &timing))
+	assert.Equal(t, 2, timing.Version)
+	assert.NotNil(t, timing.FirstContentMs)
+	assert.Zero(t, timing.ThinkingMs)
+	assert.Zero(t, timing.ToolMs)
+	assert.Zero(t, timing.ToolCalls)
+	assert.NotContains(t, string(encoded), "deliberately-private")
+
+	late, err := common.Marshal(info.Timing.Finalize(info.StartTime.Add(24 * time.Hour)))
+	require.NoError(t, err)
+	assert.JSONEq(t, string(encoded), string(late), "logging or settlement must not extend response intervals")
 }
 
 // ---------- Write deadlines ----------

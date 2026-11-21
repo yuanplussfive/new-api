@@ -146,7 +146,10 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
             )}
           />
 
-          <div className='grid gap-4 md:grid-cols-3'>
+          <div
+            data-settings-field-layout='stacked'
+            className='grid gap-4 lg:grid-cols-3'
+          >
             <FormField
               control={form.control}
               name='ModelRequestRateLimitDurationMinutes'
@@ -154,7 +157,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                 <FormItem>
                   <FormLabel>{t('Limit period')}</FormLabel>
                   <FormControl>
-                    <div className='flex items-center gap-2'>
+                    <div className='flex min-w-0 items-center gap-2'>
                       <Input
                         type='number'
                         min={0}
@@ -164,7 +167,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                           field.onChange(parseInt(e.target.value) || 0)
                         }
                       />
-                      <span className='text-muted-foreground text-sm'>
+                      <span className='text-muted-foreground shrink-0 text-sm'>
                         {t('minutes')}
                       </span>
                     </div>
@@ -184,7 +187,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                 <FormItem>
                   <FormLabel>{t('Max requests per period')}</FormLabel>
                   <FormControl>
-                    <div className='flex items-center gap-2'>
+                    <div className='flex min-w-0 items-center gap-2'>
                       <Input
                         type='number'
                         min={0}
@@ -195,7 +198,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                           field.onChange(parseInt(e.target.value) || 0)
                         }
                       />
-                      <span className='text-muted-foreground text-sm'>
+                      <span className='text-muted-foreground shrink-0 text-sm'>
                         {t('times')}
                       </span>
                     </div>
@@ -215,7 +218,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                 <FormItem>
                   <FormLabel>{t('Max successful requests')}</FormLabel>
                   <FormControl>
-                    <div className='flex items-center gap-2'>
+                    <div className='flex min-w-0 items-center gap-2'>
                       <Input
                         type='number'
                         min={1}
@@ -226,7 +229,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                           field.onChange(parseInt(e.target.value) || 1)
                         }
                       />
-                      <span className='text-muted-foreground text-sm'>
+                      <span className='text-muted-foreground shrink-0 text-sm'>
                         {t('times')}
                       </span>
                     </div>

@@ -35,9 +35,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { handleServerError } from '@/lib/handle-server-error'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
@@ -69,6 +70,20 @@ export function usePlaygroundOptions({
   updateConfig,
 }: UsePlaygroundOptionsParams) {
   const { t } = useTranslation()
+  const { models: pricingModels } = usePricingData()
+
+  // Icons come from model settings via the public pricing payload. Models
+  // without a configured icon keep no icon at all.
+  const iconByModel = useMemo(() => {
+    const icons = new Map<string, string>()
+    for (const model of pricingModels) {
+      const icon = model.icon || model.vendor_icon
+      if (icon) {
+        icons.set(model.model_name, icon)
+      }
+    }
+    return icons
+  }, [pricingModels])
 
   const {
     data: modelsData,
@@ -77,8 +92,10 @@ export function usePlaygroundOptions({
     isLoading: isLoadingModels,
   } = useQuery({
     queryKey: ['playground-models', currentGroup],
-    queryFn: async () =>
-      requireServerSuccess(await getUserModels(currentGroup)),
+    queryFn: async () => ({
+      group: currentGroup,
+      models: requireServerSuccess(await getUserModels(currentGroup)),
+    }),
     enabled: currentGroup !== '',
   })
 
@@ -116,20 +133,32 @@ export function usePlaygroundOptions({
   }, [isGroupsError, groupsError, t])
 
   useEffect(() => {
-    if (!modelsData) return
+    if (!modelsData || modelsData.group !== currentGroup) return
 
-    setModels(modelsData)
-    const fallback = getModelFallback(modelsData, currentModel)
+    setModels(
+      modelsData.models.map((model) => ({
+        ...model,
+        icon: iconByModel.get(model.value),
+      }))
+    )
+    const fallback = getModelFallback(modelsData.models, currentModel)
 
     if (fallback) {
       updateConfig('model', fallback)
       return
     }
 
-    if (shouldClearModelForGroup(modelsData, currentModel)) {
+    if (shouldClearModelForGroup(modelsData.models, currentModel)) {
       updateConfig('model', '')
     }
-  }, [modelsData, currentModel, setModels, updateConfig])
+  }, [
+    modelsData,
+    currentGroup,
+    currentModel,
+    setModels,
+    updateConfig,
+    iconByModel,
+  ])
 
   useEffect(() => {
     if (!groupsData) return

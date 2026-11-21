@@ -343,6 +343,8 @@ export function DataTablePage<TData>(props: DataTablePageProps<TData>) {
   return (
     <>
       <div
+        data-slot='data-workbench'
+        aria-busy={props.isLoading || props.isFetching || undefined}
         className={cn(
           props.fixedHeight !== false
             ? 'flex h-full min-h-0 flex-col gap-2.5 sm:gap-3'
@@ -350,7 +352,7 @@ export function DataTablePage<TData>(props: DataTablePageProps<TData>) {
           props.className
         )}
       >
-        {toolbarNode}
+        {toolbarNode != null && <div data-slot='data-workbench-toolbar' className='shrink-0'>{toolbarNode}</div>}
         {mobileNode}
         {desktopNode}
         {props.afterTable}

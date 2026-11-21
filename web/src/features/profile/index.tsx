@@ -48,15 +48,15 @@ export function Profile() {
 
   return (
     <Main>
-      <div className='min-h-0 flex-1 overflow-auto px-3 py-3 sm:px-4 sm:py-6'>
-        <CardStaggerContainer className='mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-6'>
+      <div className='profile-settings-scroll min-h-0 flex-1 overflow-auto px-4 py-4 sm:px-6 sm:py-6'>
+        <CardStaggerContainer className='profile-flat profile-settings mx-auto flex w-full flex-col'>
           <CardStaggerItem>
             <ProfileHeader profile={profile} loading={loading} />
           </CardStaggerItem>
 
           <CardStaggerItem>
-            <div className='grid gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.46fr)] xl:items-start'>
-              <div className='space-y-4 sm:space-y-6'>
+            <div className='profile-layout'>
+              <div className='profile-main'>
                 <ProfileSettingsCard
                   profile={profile}
                   loading={loading}
@@ -70,7 +70,7 @@ export function Profile() {
                 />
               </div>
 
-              <div className='space-y-4 sm:space-y-6 xl:sticky xl:top-6'>
+              <aside className='profile-aside'>
                 {checkinEnabled && (
                   <CheckinCalendarCard
                     checkinEnabled={checkinEnabled}
@@ -80,7 +80,7 @@ export function Profile() {
                   />
                 )}
                 {canConfigureSidebar && <SidebarModulesCard />}
-              </div>
+              </aside>
             </div>
           </CardStaggerItem>
         </CardStaggerContainer>

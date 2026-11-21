@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { GlobeIcon, PaperclipIcon, Trash2Icon } from 'lucide-react'
+import { Paperclip, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -24,27 +24,22 @@ import { toast } from 'sonner'
 import {
   PromptInputButton,
   PromptInputTools,
+  usePromptInputAttachments,
 } from '@/components/ai-elements/prompt-input'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-import {
-  ATTACHMENT_ACTIONS,
-  getAttachmentActionNotice,
-  getSearchActionNotice,
-} from '../../lib'
-import type { ParameterEnabled, PlaygroundConfig } from '../../types'
+import type {
+  ParameterEnabled,
+  PlaygroundConfig,
+  ThinkingLevel,
+} from '../../types'
 import { PlaygroundParameterPanel } from './playground-parameter-panel'
+import { ThinkingControl } from './thinking-control'
 
 type PlaygroundInputToolsProps = {
   config: PlaygroundConfig
@@ -60,121 +55,82 @@ type PlaygroundInputToolsProps = {
     value: boolean
   ) => void
   parameterEnabled: ParameterEnabled
+  thinkingOverrides: Record<string, ThinkingLevel[]>
+  onThinkingOverrideChange: (
+    modelId: string,
+    levels: ThinkingLevel[] | null
+  ) => void
 }
 
-export function PlaygroundInputTools({
-  config,
-  disabled,
-  hasMessages = false,
-  onClearMessages,
-  onConfigChange,
-  onParameterEnabledChange,
-  parameterEnabled,
-}: PlaygroundInputToolsProps) {
+export function PlaygroundInputTools(props: PlaygroundInputToolsProps) {
   const { t } = useTranslation()
+  const attachments = usePromptInputAttachments()
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
 
-  const handleFileAction = (action: string) => {
-    const notice = getAttachmentActionNotice(action)
-    toast.info(t(notice.title), {
-      description: notice.description,
-    })
-  }
-
-  const handleSearchAction = () => {
-    const notice = getSearchActionNotice()
-    toast.info(t(notice.title))
-  }
-
   const handleClearMessages = () => {
-    onClearMessages?.()
+    props.onClearMessages?.()
     setClearConfirmOpen(false)
     toast.success(t('Conversation cleared'))
   }
 
   return (
     <>
-      <PromptInputTools className='bg-background/70 border-border/60 rounded-lg border p-1 shadow-xs'>
-        <Tooltip>
-          <DropdownMenu>
-            <TooltipTrigger
-              render={
-                <DropdownMenuTrigger
-                  render={
-                    <PromptInputButton
-                      aria-label={t('Attach')}
-                      className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
-                      disabled={disabled}
-                      variant='ghost'
-                    />
-                  }
-                >
-                  <PaperclipIcon size={16} />
-                </DropdownMenuTrigger>
-              }
-            />
-            <TooltipContent>
-              <p>{t('Attach')}</p>
-            </TooltipContent>
-            <DropdownMenuContent align='start'>
-              {ATTACHMENT_ACTIONS.map(({ action, icon: Icon, label }) => (
-                <DropdownMenuItem
-                  key={action}
-                  onClick={() => handleFileAction(action)}
-                >
-                  <Icon className='mr-2' size={16} />
-                  {t(label)}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </Tooltip>
-
+      <PromptInputTools className='gap-0.5'>
         <Tooltip>
           <TooltipTrigger
             render={
               <PromptInputButton
-                aria-label={t('Search')}
-                className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
-                disabled={disabled}
-                onClick={handleSearchAction}
+                aria-label={t('Add images')}
+                className='text-muted-foreground hover:text-foreground'
+                disabled={props.disabled}
+                onClick={() => attachments.openFileDialog()}
                 variant='ghost'
-              >
-                <GlobeIcon size={16} />
-              </PromptInputButton>
+              />
             }
-          />
+          >
+            <Paperclip size={16} aria-hidden='true' />
+          </TooltipTrigger>
           <TooltipContent>
-            <p>{t('Search')}</p>
+            <p>{t('Add images')}</p>
           </TooltipContent>
         </Tooltip>
 
-        <PlaygroundParameterPanel
-          config={config}
-          disabled={disabled}
-          onConfigChange={onConfigChange}
-          onParameterEnabledChange={onParameterEnabledChange}
-          parameterEnabled={parameterEnabled}
+        <ThinkingControl
+          config={props.config}
+          disabled={props.disabled}
+          onConfigChange={props.onConfigChange}
+          onThinkingOverrideChange={props.onThinkingOverrideChange}
+          overrides={props.thinkingOverrides}
         />
 
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <PromptInputButton
-                aria-label={t('Clear chat history')}
-                className='text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-medium'
-                disabled={disabled || !hasMessages || !onClearMessages}
-                onClick={() => setClearConfirmOpen(true)}
-                variant='ghost'
-              >
-                <Trash2Icon size={16} />
-              </PromptInputButton>
-            }
-          />
-          <TooltipContent>
-            <p>{t('Clear chat history')}</p>
-          </TooltipContent>
-        </Tooltip>
+        <PlaygroundParameterPanel
+          config={props.config}
+          disabled={props.disabled}
+          onConfigChange={props.onConfigChange}
+          onParameterEnabledChange={props.onParameterEnabledChange}
+          parameterEnabled={props.parameterEnabled}
+        />
+
+        {props.hasMessages && props.onClearMessages ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <PromptInputButton
+                  aria-label={t('Clear chat history')}
+                  className='text-muted-foreground hover:text-destructive'
+                  disabled={props.disabled}
+                  onClick={() => setClearConfirmOpen(true)}
+                  variant='ghost'
+                />
+              }
+            >
+              <Trash2 size={16} aria-hidden='true' />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('Clear chat history')}</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
       </PromptInputTools>
 
       <ConfirmDialog

@@ -65,8 +65,8 @@ export function NavGroup({ title, items }: NavGroupProps) {
   const href = useLocation({ select: (location) => location.href })
 
   return (
-    <SidebarGroup className='px-2 py-1'>
-      <SidebarGroupLabel className='text-muted-foreground/70 px-2 text-[11px] font-medium tracking-wider uppercase'>
+    <SidebarGroup className='px-2 py-1.5'>
+      <SidebarGroupLabel className='text-muted-foreground px-2 text-[11px] font-medium'>
         {title}
       </SidebarGroupLabel>
       <SidebarMenu>
@@ -130,6 +130,7 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
         render={
           <Link
             to={item.url}
+            aria-current={checkIsActive(href, item) ? 'page' : undefined}
             preload={isMobile ? false : undefined}
             onClick={() => setOpenMobile(false)}
           />
@@ -192,6 +193,7 @@ function SidebarMenuCollapsible({
                 render={
                   <Link
                     to={subItem.url}
+                    aria-current={checkIsActive(href, subItem) ? 'page' : undefined}
                     preload={isMobile ? false : undefined}
                     onClick={() => setOpenMobile(false)}
                   />

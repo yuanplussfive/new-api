@@ -23,7 +23,6 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { LayoutProvider } from '@/context/layout-provider'
 import { SearchProvider } from '@/context/search-provider'
 import { getCookie } from '@/lib/cookies'
-import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { AppHeader } from './app-header'
@@ -42,22 +41,17 @@ export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
   return (
     <LayoutProvider>
       <SearchProvider>
-        <SidebarProvider defaultOpen={defaultOpen} className='flex-col'>
+        <SidebarProvider
+          defaultOpen={defaultOpen}
+          className='workspace-shell'
+          style={{ '--sidebar-width': 'clamp(14rem, 18vw, 17rem)' } as React.CSSProperties}
+        >
           <SkipToMain />
-          <AppHeader />
-          <div className='flex min-h-0 w-full flex-1'>
-            <AppSidebar />
-            <SidebarInset
-              className={cn(
-                '@container/content',
-                'h-[calc(100svh-var(--app-header-height,0px))]',
-                'min-h-0 overflow-hidden',
-                'peer-data-[variant=inset]:h-[calc(100svh-var(--app-header-height,0px)-(var(--spacing)*4))]'
-              )}
-            >
-              {props.children ?? <AnimatedOutlet />}
-            </SidebarInset>
-          </div>
+          <AppSidebar />
+          <SidebarInset className='workspace-stage @container/content min-h-0 overflow-hidden'>
+            <AppHeader />
+            {props.children ?? <AnimatedOutlet />}
+          </SidebarInset>
         </SidebarProvider>
         <CommandMenu />
       </SearchProvider>

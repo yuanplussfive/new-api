@@ -182,7 +182,7 @@ function normalizeMathSource(source: string): string {
     .replace(/\\\]$/, '')
 }
 
-function renderMath(source: string, displayMode: boolean): string {
+export function renderMath(source: string, displayMode: boolean): string {
   return katex.renderToString(normalizeMathSource(source), {
     displayMode,
     output: 'htmlAndMathml',

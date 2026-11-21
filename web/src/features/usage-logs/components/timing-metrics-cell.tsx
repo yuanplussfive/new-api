@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { CircleAlert } from 'lucide-react'
+import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -30,128 +31,135 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { formatUseTime } from '@/lib/format'
+import { toIntlLocale } from '@/i18n/languages'
 import { cn } from '@/lib/utils'
 
 import { getFirstResponseTimeColor, getResponseTimeColor } from '../lib/format'
+import { formatTimingMilliseconds, getRequestTiming } from '../lib/timing'
 import type { LogOtherData } from '../types'
-
-/**
- * Softened fills for the full-height timing bar. The bar sits directly beside
- * dense numeric text, so the saturated `dotColorMap` tones (tuned for small
- * dots and badges) read as too high-contrast at that size; a translucent fill
- * keeps the status legible while matching the page's muted palette.
- */
-const barColorMap: Record<StatusVariant, string> = {
-  ...dotColorMap,
-  success: 'bg-success/90',
-  warning: 'bg-warning/80',
-  danger: 'bg-destructive/80',
-  neutral: 'bg-neutral/80',
-}
+import { LogTimingTimeline } from './timing-timeline'
 
 interface TimingMetricsCellProps {
   useTimeSec: number
   completionTokens: number
   frtMs?: number
   isStream: boolean
+  timing?: LogOtherData['timing']
   className?: string
   /**
-   * `bar` (default) draws a full-height color segment beside the labels,
-   * matching the dense desktop table. `dot` swaps that segment for small
-   * status dots inline with each label, matching the lighter-weight status
-   * indicator used elsewhere on the mobile card.
+   * `bar` (default) adds the phase timeline under the labels for the desktop
+   * table; `dot` keeps the lighter inline status dots used by mobile cards.
    */
   indicator?: 'bar' | 'dot'
   compact?: boolean
 }
 
 export function TimingMetricsCell(props: TimingMetricsCellProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const tooltipId = useId()
+  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const indicator = props.indicator ?? 'bar'
-  const showFirstToken = props.isStream
-  const firstTokenSeconds =
-    props.frtMs != null && props.frtMs > 0 ? props.frtMs / 1000 : null
-  const firstTokenVariant: StatusVariant =
-    firstTokenSeconds == null
-      ? 'neutral'
-      : getFirstResponseTimeColor(firstTokenSeconds)
-  const totalTimeVariant = getResponseTimeColor(
+  const timing = getRequestTiming(
     props.useTimeSec,
-    props.completionTokens
+    props.frtMs,
+    props.isStream,
+    props.timing
   )
-  const firstTokenLabel =
-    firstTokenSeconds == null ? t('N/A') : formatUseTime(firstTokenSeconds)
-  const totalTimeLabel = formatUseTime(props.useTimeSec)
-
-  const labels = (
-    <div
-      className={cn(
-        'flex min-h-8 min-w-0 flex-col justify-center gap-0.5 text-xs leading-tight',
-        props.compact &&
-          'min-h-0 flex-row flex-wrap items-center gap-x-2.5 gap-y-1'
-      )}
-    >
-      {showFirstToken && (
-        <div className='flex items-baseline gap-1.5'>
-          {indicator === 'dot' && (
-            <span
-              aria-hidden
-              className={cn(
-                'size-1.5 shrink-0 rounded-full',
-                dotColorMap[firstTokenVariant]
-              )}
-            />
-          )}
-          <span className='text-muted-foreground shrink-0'>
-            {t('First token')}
-          </span>
-          <span className={cn('tabular-nums', textColorMap[firstTokenVariant])}>
-            {firstTokenLabel}
-          </span>
-        </div>
-      )}
-      <div className='flex items-baseline gap-1.5'>
-        {indicator === 'dot' && (
-          <span
-            aria-hidden
-            className={cn(
-              'size-1.5 shrink-0 rounded-full',
-              dotColorMap[totalTimeVariant]
-            )}
-          />
-        )}
-        <span className='text-muted-foreground shrink-0'>{t('Duration')}</span>
-        <span className={cn('tabular-nums', textColorMap[totalTimeVariant])}>
-          {totalTimeLabel}
-        </span>
-      </div>
-    </div>
-  )
-
-  if (indicator === 'dot') {
-    return (
-      <div className={cn('flex items-stretch', props.className)}>{labels}</div>
-    )
-  }
+  const firstVariant: StatusVariant =
+    timing.firstResponseMs === undefined
+      ? 'neutral'
+      : getFirstResponseTimeColor(timing.firstResponseMs / 1000)
+  const totalVariant: StatusVariant =
+    timing.totalMs === null
+      ? 'neutral'
+      : getResponseTimeColor(timing.totalMs / 1000, props.completionTokens)
+  const firstLabel =
+    timing.firstResponseMs === undefined
+      ? t('N/A')
+      : formatTimingMilliseconds(timing.firstResponseMs, locale)
+  const totalLabel = formatTimingMilliseconds(timing.totalMs, locale)
+  const accessibleLabel = props.isStream
+    ? `${t('First response')}: ${firstLabel}; ${t('Duration')}: ${totalLabel}`
+    : `${t('Duration')}: ${totalLabel}`
 
   return (
-    <div className={cn('flex items-stretch gap-2', props.className)}>
-      <span
-        aria-hidden
-        className={cn(
-          'flex w-1 shrink-0 flex-col overflow-hidden rounded-full',
-          !showFirstToken && barColorMap[totalTimeVariant]
-        )}
-      >
-        {showFirstToken && (
-          <>
-            <span className={cn('flex-1', barColorMap[firstTokenVariant])} />
-            <span className={cn('flex-1', barColorMap[totalTimeVariant])} />
-          </>
-        )}
-      </span>
-      {labels}
+    <div className={cn('flex min-w-0 items-center', props.className)}>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <div
+                tabIndex={0}
+                aria-label={accessibleLabel}
+                aria-describedby={tooltipId}
+              />
+            }
+            className='flex min-w-0 flex-1 flex-col gap-1.5'
+          >
+            <div className='flex min-w-0 items-center gap-3 text-[11px] leading-tight tabular-nums'>
+              {props.isStream && (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1',
+                    textColorMap[firstVariant]
+                  )}
+                >
+                  {indicator === 'dot' && (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'size-1.5 shrink-0',
+                        dotColorMap[firstVariant]
+                      )}
+                    />
+                  )}
+                  {firstLabel}
+                </span>
+              )}
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1',
+                  textColorMap[totalVariant]
+                )}
+              >
+                {indicator === 'dot' && (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'size-1.5 shrink-0',
+                      dotColorMap[totalVariant]
+                    )}
+                  />
+                )}
+                {totalLabel}
+              </span>
+            </div>
+            {indicator === 'bar' && (
+              <LogTimingTimeline
+                useTimeSec={props.useTimeSec}
+                frtMs={props.frtMs}
+                isStream={props.isStream}
+                timing={props.timing}
+              />
+            )}
+          </TooltipTrigger>
+          <TooltipContent
+            role='tooltip'
+            id={tooltipId}
+            className='block w-[min(24rem,calc(100vw-2rem))] max-w-none py-3'
+          >
+            <LogTimingTimeline
+              useTimeSec={props.useTimeSec}
+              frtMs={props.frtMs}
+              isStream={props.isStream}
+              timing={props.timing}
+              variant='full'
+              inTooltip
+              className='[&_*]:text-inherit'
+            />
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   )
 }
@@ -184,14 +192,13 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
   return (
     <div
       className={cn(
-        'flex shrink-0 flex-col items-start justify-center gap-0.5 text-xs leading-tight',
-        props.compact && 'flex-row flex-wrap items-center gap-1.5',
+        'flex min-w-0 items-center gap-2 text-xs leading-tight',
         props.className
       )}
     >
       <span
         className={cn(
-          'inline-flex items-center gap-1 font-medium',
+          'inline-flex w-14 shrink-0 items-center gap-1 truncate font-medium',
           props.isStream ? 'text-info' : 'text-muted-foreground'
         )}
       >
@@ -221,7 +228,7 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
       </span>
       {(!props.compact ||
         (props.isStream && props.tokensPerSecond != null)) && (
-        <span className='text-muted-foreground/60 px-0.5 tabular-nums'>
+        <span className='text-muted-foreground/70 min-w-0 truncate tabular-nums'>
           {tpsLabel}
         </span>
       )}

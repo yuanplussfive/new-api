@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import dayjs from 'dayjs'
 import i18next from 'i18next'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
@@ -100,6 +101,42 @@ test('an unconfigured group sees its history but cannot start a draw', async () 
     screen.queryByRole('region', { name: 'Daily reward draw' })
   ).not.toBeInTheDocument()
   expect(performCheckin).not.toHaveBeenCalled()
+})
+
+test('collapsing check-in history hides its calendar and expanding restores it', async () => {
+  renderCheckin()
+  const toggle = await screen.findByRole('button', {
+    name: /Daily Check-in/,
+    expanded: true,
+  })
+  const history = document.getElementById('profile-checkin-history')
+  expect(toggle).toHaveAttribute('aria-controls', 'profile-checkin-history')
+  expect(history).not.toHaveAttribute('hidden')
+
+  fireEvent.click(toggle)
+  expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  expect(history).toHaveAttribute('hidden')
+
+  fireEvent.click(toggle)
+  expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  expect(history).not.toHaveAttribute('hidden')
+})
+
+test('month navigation has accessible actions and updates the visible month', async () => {
+  renderCheckin()
+  const currentMonth = dayjs().format('YYYY-MM')
+  expect(
+    await screen.findByRole('heading', { name: currentMonth })
+  ).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Previous Month' }))
+  expect(
+    await screen.findByRole('heading', {
+      name: dayjs().subtract(1, 'month').format('YYYY-MM'),
+    })
+  ).toBeVisible()
+  expect(vi.mocked(getCheckinStatus)).toHaveBeenLastCalledWith(
+    dayjs().subtract(1, 'month').format('YYYY-MM')
+  )
 })
 
 test('a pending draw blocks repeated clicks and announces the result with reduced motion', async () => {

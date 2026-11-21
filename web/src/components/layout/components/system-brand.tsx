@@ -82,10 +82,10 @@ export function SystemBrand(props: SystemBrandProps) {
       <SidebarMenuItem>
         <SidebarMenuButton
           size='lg'
-          className='hover:text-sidebar-foreground active:text-sidebar-foreground cursor-default hover:bg-transparent active:bg-transparent'
-          render={<div />}
+          className='h-10 px-1.5 hover:bg-sidebar-accent'
+          render={<Link to='/' aria-label={t('Go to home')} />}
         >
-          <div className='flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg'>
+          <div className='flex aspect-square size-7 shrink-0 items-center justify-center overflow-hidden rounded-lg'>
             <img
               src={logo}
               alt={t('Logo')}
@@ -94,7 +94,7 @@ export function SystemBrand(props: SystemBrandProps) {
           </div>
           <div className='grid flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden'>
             <span className='truncate font-semibold'>{name}</span>
-            <span className='truncate text-xs'>{version}</span>
+            <span className='text-muted-foreground truncate text-[10px]'>{version}</span>
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>

@@ -185,10 +185,10 @@ describe('security page migration', () => {
     expect(
       within(verification).getByRole('switch', { name: 'Record IP Address' })
     ).toBeVisible()
-    expect(verification).toHaveClass('xl:sticky', 'xl:top-0')
+    expect(verification).toHaveClass('lg:sticky', 'lg:top-0')
     expect(verification.parentElement).toHaveClass(
       'grid',
-      'xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.46fr)]'
+      'lg:grid-cols-[minmax(0,1fr)_22rem]'
     )
     const access = screen.getByRole('region', { name: 'Sessions & Access' })
     expect(within(access).getByText('Access tokens')).toBeVisible()

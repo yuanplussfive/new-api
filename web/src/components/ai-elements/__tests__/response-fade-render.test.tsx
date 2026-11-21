@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { Response } from '../response'
@@ -32,18 +32,20 @@ afterEach(() => {
 })
 
 describe('Response streaming fade', () => {
-  test('wraps newly streamed words when final is false', () => {
+  test('wraps newly streamed words when final is false', async () => {
     const { rerender } = render(<Response final={false}>Hello</Response>)
 
-    expect(document.querySelectorAll('[data-stream-fade]').length).toBeGreaterThan(
-      0
-    )
+    expect(
+      document.querySelectorAll('[data-stream-fade]').length
+    ).toBeGreaterThan(0)
     expect(screen.getByText('Hello')).toBeTruthy()
 
     rerender(<Response final={false}>Hello world</Response>)
 
-    const fades = [...document.querySelectorAll('[data-stream-fade]')]
-    expect(fades.some((node) => node.textContent === 'world')).toBe(true)
+    await waitFor(() => {
+      const fades = [...document.querySelectorAll('[data-stream-fade]')]
+      expect(fades.some((node) => node.textContent === 'world')).toBe(true)
+    })
   })
 
   test('renders settled content with zero fade wrappers when final is true', () => {
@@ -74,9 +76,9 @@ describe('Response streaming fade', () => {
   test('does not re-animate words after markdown restructuring around strong', () => {
     vi.spyOn(performance, 'now').mockReturnValue(1000)
     const { rerender } = render(<Response final={false}>**fin</Response>)
-    expect(document.querySelectorAll('[data-stream-fade]').length).toBeGreaterThan(
-      0
-    )
+    expect(
+      document.querySelectorAll('[data-stream-fade]').length
+    ).toBeGreaterThan(0)
 
     vi.spyOn(performance, 'now').mockReturnValue(
       1000 + FADE_DURATION_MS + FADE_STAGGER_MAX_MS + 1
@@ -104,9 +106,9 @@ describe('Response streaming fade', () => {
     const { rerender } = render(
       <Response final={false}>Streaming text</Response>
     )
-    expect(document.querySelectorAll('[data-stream-fade]').length).toBeGreaterThan(
-      0
-    )
+    expect(
+      document.querySelectorAll('[data-stream-fade]').length
+    ).toBeGreaterThan(0)
 
     rerender(<Response final>Streaming text</Response>)
     expect(document.querySelectorAll('[data-stream-fade]')).toHaveLength(0)

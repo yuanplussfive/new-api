@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate } from '@tanstack/react-router'
-import { User, Wallet, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import { User, Wallet, LogOut, Settings, ShieldCheck, ChevronsUpDown } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -37,10 +37,11 @@ import { useUserDisplay } from '@/hooks/use-user-display'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
+import { cn } from '@/lib/utils'
 
 const avatarFallbackClassName = 'font-semibold text-white'
 
-export function ProfileDropdown() {
+export function ProfileDropdown(props: { presentation?: 'compact' | 'sidebar' }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [open, setOpen] = useDialogState()
@@ -60,7 +61,7 @@ export function ProfileDropdown() {
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger
-          render={<Button variant='ghost' className='relative size-6 p-0' />}
+          render={<Button variant='ghost' aria-label={t('Profile')} className={cn('relative size-6 p-0', props.presentation === 'sidebar' && 'h-12 w-full justify-start gap-2 rounded-lg px-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0')} />}
         >
           <Avatar className='size-6'>
             <AvatarFallback
@@ -70,8 +71,15 @@ export function ProfileDropdown() {
               {avatarFallback}
             </AvatarFallback>
           </Avatar>
+          {props.presentation === 'sidebar' && <>
+            <span className='flex min-w-0 flex-1 flex-col gap-0.5 text-left group-data-[collapsible=icon]:hidden'>
+              <span className='truncate text-xs font-medium'>{displayName}</span>
+              <span className='text-muted-foreground truncate text-[10px] font-normal'>{roleLabel}{user?.group ? ` · ${String(user.group)}` : ''}</span>
+            </span>
+            <ChevronsUpDown className='text-muted-foreground size-3.5 group-data-[collapsible=icon]:hidden' aria-hidden='true' />
+          </>}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end' sideOffset={8} className='w-56'>
+        <DropdownMenuContent align='end' side={props.presentation === 'sidebar' ? 'top' : 'bottom'} sideOffset={8} className='w-56'>
           <div className='flex items-center gap-2 px-1.5 py-1.5'>
             <Avatar className='size-8'>
               <AvatarFallback

@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Crown, RefreshCw, Sparkles, Check } from 'lucide-react'
+import { Crown, RefreshCw, Check } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -238,7 +238,11 @@ export function SubscriptionPlansCard({
 
   if (loading) {
     return (
-      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
+      <Card
+        data-card-hover='false'
+        data-dashboard-panel=''
+        className='gap-0 overflow-hidden py-0'
+      >
         <CardHeader className='border-b p-3 !pb-3 sm:p-5 sm:!pb-5'>
           <Skeleton className='h-6 w-32' />
         </CardHeader>
@@ -261,6 +265,7 @@ export function SubscriptionPlansCard({
   return (
     <>
       <TitledCard
+        variant='plain'
         title={t('Subscription Plans')}
         description={t('Subscribe to a plan for model access')}
         icon={<Crown className='h-4 w-4' />}
@@ -269,7 +274,7 @@ export function SubscriptionPlansCard({
         contentClassName='space-y-4 sm:space-y-5'
       >
         {/* My subscriptions & billing preference */}
-        <div className='rounded-xl border p-3 sm:p-4'>
+        <div className='border-line-subtle border-t py-4'>
           <div className='flex flex-wrap items-center justify-between gap-2.5 sm:gap-3'>
             <div className='flex min-w-0 flex-wrap items-center gap-2'>
               <span className='text-sm font-medium'>
@@ -381,15 +386,13 @@ export function SubscriptionPlansCard({
           </div>
 
           {disablePref && isSubPref && (
-            <p className='text-muted-foreground mt-2 text-xs'>
+            <p className='text-content-muted mt-1.5 text-[11px]'>
               {billingPreference === 'subscription_only'
                 ? t(
-                    'Preference saved as {{pref}}, but no active subscription. Requests will be rejected.',
-                    { pref: t('Subscription Only') }
+                    'No active subscription yet. Requests are rejected until you subscribe.'
                   )
                 : t(
-                    'Preference saved as {{pref}}, but no active subscription. Wallet will be used automatically.',
-                    { pref: t('Subscription First') }
+                    'No active subscription yet. Requests use your wallet balance.'
                   )}
             </p>
           )}
@@ -449,7 +452,7 @@ export function SubscriptionPlansCard({
                   return (
                     <div
                       key={subscription?.id}
-                      className='bg-background rounded-md border p-3 text-xs'
+                      className='wallet-current-subscription text-xs'
                     >
                       <div className='flex items-center justify-between'>
                         <div className='flex items-center gap-2'>
@@ -514,17 +517,11 @@ export function SubscriptionPlansCard({
               </div>
             </>
           )}
-
-          {!hasAny && (
-            <p className='text-muted-foreground mt-2 text-xs'>
-              {t('Subscribe to a plan for model access')}
-            </p>
-          )}
         </div>
 
         {/* Available plans grid */}
         {plans.length > 0 ? (
-          <div className='grid grid-cols-1 gap-3 2xl:grid-cols-2 2xl:gap-4'>
+          <div className='grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-3'>
             {plans.map((p, index) => {
               const plan = p?.plan
               if (!plan) return null
@@ -550,37 +547,32 @@ export function SubscriptionPlansCard({
               ].filter(Boolean) as string[]
 
               return (
-                <Card
+                <div
                   key={plan.id}
-                  data-card-hover='false'
-                  className={cn(isPopular && 'border-primary/70 shadow-sm')}
+                  className='wallet-plan min-w-0'
+                  data-testid='wallet-plan'
                 >
-                  <CardContent className='flex h-full flex-col p-3.5 sm:p-4'>
-                    <div className='mb-2 flex items-start justify-between gap-3'>
+                  <div className='flex h-full flex-col p-0'>
+                    <div className='wallet-plan-description mb-2 flex items-start justify-between gap-3'>
                       <div className='min-w-0'>
-                        <h4 className='truncate font-semibold'>
+                        <h4 className='text-content-strong truncate text-[13.5px] font-semibold'>
                           {plan.title || t('Subscription Plans')}
                         </h4>
                         {plan.subtitle && (
-                          <p className='text-muted-foreground truncate text-xs'>
+                          <p className='text-content-muted line-clamp-2 text-[11px] leading-4'>
                             {plan.subtitle}
                           </p>
                         )}
                       </div>
                       {isPopular && (
-                        <StatusBadge
-                          variant='info'
-                          copyable={false}
-                          className='shrink-0'
-                        >
-                          <Sparkles className='h-3 w-3' />
+                        <span className='text-content-muted shrink-0 text-[10px] tracking-[0.06em] uppercase'>
                           {t('Recommended')}
-                        </StatusBadge>
+                        </span>
                       )}
                     </div>
 
                     <div className='py-2'>
-                      <span className='text-primary text-2xl font-bold'>
+                      <span className='text-content-strong font-mono text-[22px] font-semibold tabular-nums'>
                         ${price}
                       </span>
                     </div>
@@ -591,7 +583,7 @@ export function SubscriptionPlansCard({
                           key={label}
                           className='text-muted-foreground flex items-center gap-2 text-xs'
                         >
-                          <Check className='text-primary h-3 w-3 shrink-0' />
+                          <Check className='text-content-muted h-3 w-3 shrink-0' />
                           <span>{label}</span>
                         </div>
                       ))}
@@ -622,8 +614,8 @@ export function SubscriptionPlansCard({
                         {t('Subscribe Now')}
                       </Button>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )
             })}
           </div>

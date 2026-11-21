@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
@@ -198,6 +199,52 @@ describe('user settings saves across profile and security', () => {
       ...settings,
       quota_warning_threshold: 2700,
       record_ip_log: false,
+    })
+  })
+})
+
+describe('notification editing layout', () => {
+  it('switching methods exposes the selected destination without losing save semantics', async () => {
+    const onUpdate = vi.fn()
+    vi.spyOn(api, 'get').mockResolvedValue({
+      data: {
+        success: true,
+        data: { ...profile, setting: JSON.stringify(settings) },
+      },
+    })
+    const put = vi
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: { success: true } })
+    render(
+      <NotificationTab
+        profile={{ ...profile, setting: JSON.stringify(settings) }}
+        onUpdate={onUpdate}
+        quotaRemindEnabled
+        quotaRemindThreshold={1000}
+      />
+    )
+
+    expect(
+      screen.getByRole('region', { name: 'Notifications' })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'Preferences' })
+    ).toBeInTheDocument()
+    const email = screen.getByRole('button', { name: 'Email' })
+    await userEvent.click(email)
+    expect(email).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      screen.getByRole('textbox', { name: 'Notification Email' })
+    ).toBeEnabled()
+    expect(
+      screen.queryByRole('textbox', { name: 'Webhook URL' })
+    ).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledOnce())
+    expect(put).toHaveBeenCalledWith('/api/user/setting', {
+      ...settings,
+      notify_type: 'email',
     })
   })
 })

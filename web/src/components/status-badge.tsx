@@ -37,7 +37,14 @@ For commercial licensing, please contact support@quantumnous.com
 */
 /* eslint-disable react-refresh/only-export-components */
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { stringToColor } from '@/lib/colors'
 import { cn } from '@/lib/utils'
@@ -152,6 +159,7 @@ export function StatusBadge({
   ...props
 }: StatusBadgeProps) {
   const { copyToClipboard } = useCopyToClipboard()
+  const { t } = useTranslation()
   const contextType = React.useContext(StatusBadgeTypeContext)
   const type = typeProp ?? contextType
 
@@ -174,29 +182,26 @@ export function StatusBadge({
     ) : null)
 
   const isBadge = type === 'badge'
-  const title = copyable
-    ? `Click to copy: ${copyText || label || ''}`
-    : label || undefined
+  const className_ = cn(
+    'inline-flex w-fit max-w-full min-w-0 shrink items-center font-medium tracking-normal whitespace-nowrap transition-colors',
+    isBadge
+      ? cn('rounded-4xl', sizeMap[size ?? 'sm'])
+      : cn(
+          textSizeMap[size ?? 'sm'],
+          type === 'underline' && 'border-b border-current pb-px'
+        ),
+    textColorMap[computedVariant],
+    pulse && 'animate-pulse',
+    copyable &&
+      'cursor-copy hover:brightness-95 active:scale-95 dark:hover:brightness-110',
+    className
+  )
 
-  return (
+  const badge = (
     <span
       data-slot='status-badge'
-      className={cn(
-        'inline-flex w-fit max-w-full min-w-0 shrink items-center font-medium tracking-normal whitespace-nowrap transition-colors',
-        isBadge
-          ? cn('rounded-4xl', sizeMap[size ?? 'sm'])
-          : cn(
-              textSizeMap[size ?? 'sm'],
-              type === 'underline' && 'border-b border-current pb-px'
-            ),
-        textColorMap[computedVariant],
-        pulse && 'animate-pulse',
-        copyable &&
-          'cursor-copy hover:brightness-95 active:scale-95 dark:hover:brightness-110',
-        className
-      )}
+      className={className_}
       onClick={handleClick}
-      title={title}
       {...props}
     >
       {showDot && (
@@ -211,6 +216,21 @@ export function StatusBadge({
       {Icon && <Icon className='size-3.5 shrink-0' />}
       {content}
     </span>
+  )
+
+  if (!copyable) {
+    return badge
+  }
+
+  return (
+    <TooltipProvider delay={200}>
+      <Tooltip>
+        <TooltipTrigger render={badge} />
+        <TooltipContent>
+          {`${t('Click to copy')}: ${copyText || label || ''}`}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 

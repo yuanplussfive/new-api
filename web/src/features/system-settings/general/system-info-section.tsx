@@ -277,31 +277,6 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name='About'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('About')}</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder={t(
-                          'Enter HTML code (e.g., <p>About us...</p>) or a URL (e.g., https://example.com) to embed as iframe'
-                        )}
-                        rows={4}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        'Supports HTML markup or iframe embedding. Enter HTML code directly, or provide a complete URL to automatically embed it as an iframe.'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <SettingsFormGridItem span='full'>
                 <FormField
                   control={form.control}

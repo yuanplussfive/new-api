@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AlertCircle, AlertTriangle, Settings } from 'lucide-react'
+import { AlertCircle, AlertTriangle } from 'lucide-react'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -38,8 +38,6 @@ For commercial licensing, please contact support@quantumnous.com
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 
 import {
@@ -57,17 +55,18 @@ interface MessageErrorProps {
 }
 
 /**
- * Display error messages using Alert component
- * Following ai-elements pattern for error handling
+ * Inline error notice, matching the reference chat: one icon, one text line,
+ * optional inline actions instead of a bordered alert card.
  */
-export function MessageError({
-  message,
-  className = '',
-  actions,
-}: MessageErrorProps) {
+export function MessageError(props: MessageErrorProps) {
   const { t } = useTranslation()
   const user = useAuthStore((s) => s.auth.user)
-  const errorState = getMessageErrorState(message, isAdminRole(user?.role))
+  const errorState = getMessageErrorState(
+    props.message,
+    isAdminRole(user?.role)
+  )
+  const className = props.className ?? ''
+  const actions = props.actions
 
   if (!errorState) {
     return null
@@ -80,39 +79,44 @@ export function MessageError({
         : errorState.content
 
     return (
-      <Alert variant='default' className={className}>
-        <AlertTriangle className='text-orange-500' />
-        <AlertTitle>{t('Model Price Not Configured')}</AlertTitle>
-        <AlertDescription className='space-y-2'>
-          <p>{content}</p>
-          {errorState.showSettingsLink && (
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => window.open(MODEL_PRICING_SETTINGS_PATH, '_blank')}
-            >
-              <Settings className='mr-1 h-3.5 w-3.5' />
-              {t('Go to Settings')}
-            </Button>
-          )}
-          {actions}
-        </AlertDescription>
-      </Alert>
+      <div
+        className={`text-destructive flex items-start gap-1.5 pt-2 text-[14px] leading-[22px] ${className}`}
+      >
+        <AlertTriangle className='mt-1 size-4 shrink-0' aria-hidden='true' />
+        <div className='min-w-0 space-y-1.5'>
+          <p className='break-words whitespace-pre-wrap'>{content}</p>
+          <div className='flex flex-wrap items-center gap-3'>
+            {errorState.showSettingsLink && (
+              <button
+                type='button'
+                className='text-brand text-[13px] hover:underline'
+                onClick={() =>
+                  window.open(MODEL_PRICING_SETTINGS_PATH, '_blank')
+                }
+              >
+                {t('Go to Settings')}
+              </button>
+            )}
+            {actions}
+          </div>
+        </div>
+      </div>
     )
   }
 
   return (
-    <Alert variant='destructive' className={className}>
-      <AlertCircle />
-      <AlertTitle>{t('Error')}</AlertTitle>
-      <AlertDescription className='space-y-2'>
-        <p>
+    <div
+      className={`text-destructive flex items-start gap-1.5 pt-2 text-[14px] leading-[22px] ${className}`}
+    >
+      <AlertCircle className='mt-1 size-4 shrink-0' aria-hidden='true' />
+      <div className='min-w-0 space-y-1.5'>
+        <p className='break-words whitespace-pre-wrap'>
           {errorState.content === FALLBACK_ERROR_CONTENT
             ? t(FALLBACK_ERROR_CONTENT)
             : errorState.content}
         </p>
         {actions}
-      </AlertDescription>
-    </Alert>
+      </div>
+    </div>
   )
 }

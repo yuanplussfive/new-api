@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import type { LucideIcon } from 'lucide-react'
 import { useId, type ReactNode } from 'react'
 
-import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
+import type { IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
@@ -64,15 +64,9 @@ const TONE_CLASSES: Record<StatCardTone, string> = {
 }
 
 const LINE_TONE_CLASSES: Record<StatCardTone, string> = {
-  'accent-1': 'text-overview-accent-1',
-  'accent-2': 'text-overview-accent-2',
-  'accent-3': 'text-overview-accent-3',
-}
-
-const ICON_TONE_BY_STAT_TONE: Record<StatCardTone, IconBadgeTone> = {
-  'accent-1': 'chart-1',
-  'accent-2': 'chart-2',
-  'accent-3': 'chart-3',
+  'accent-1': 'text-overview-accent-1/70',
+  'accent-2': 'text-overview-accent-2/70',
+  'accent-3': 'text-overview-accent-3/70',
 }
 
 const DETAIL_TONE_CLASSES: Record<StatCardDetailTone, string> = {
@@ -112,6 +106,8 @@ function buildLineSparkline(values?: number[]) {
   const padding = 3
   const max = Math.max(...sanitized)
   const min = Math.min(...sanitized)
+  // An all-zero series would render a flat rule that reads as a stray border.
+  if (max <= 0) return null
   const range = max - min
 
   const points = sanitized.map((value, index) => {
@@ -166,7 +162,7 @@ function LineSparkline(props: { values?: number[]; tone: StatCardTone }) {
       >
         <defs>
           <linearGradient id={gradientId} x1='0' x2='0' y1='0' y2='1'>
-            <stop offset='0%' stopColor='currentColor' stopOpacity='0.24' />
+            <stop offset='0%' stopColor='currentColor' stopOpacity='0.16' />
             <stop offset='100%' stopColor='currentColor' stopOpacity='0' />
           </linearGradient>
         </defs>
@@ -177,7 +173,7 @@ function LineSparkline(props: { values?: number[]; tone: StatCardTone }) {
           stroke='currentColor'
           strokeLinecap='round'
           strokeLinejoin='round'
-          strokeWidth='2.25'
+          strokeWidth='1.5'
           vectorEffect='non-scaling-stroke'
         />
       </svg>
@@ -207,18 +203,18 @@ function BarSparkline(props: { values?: number[]; tone: StatCardTone }) {
 
 function StatCardDetails(props: { details: StatCardDetail[] }) {
   return (
-    <div className='grid grid-cols-2 gap-2'>
+    <div className='grid grid-cols-2 gap-x-4'>
       {props.details.map((detail) => (
         <div
           key={detail.label}
-          className='bg-muted/40 rounded-lg border border-transparent px-2.5 py-2'
+          className='border-t border-line-subtle py-2'
         >
-          <div className='text-muted-foreground truncate text-[11px] leading-none font-medium'>
+          <div className='text-content-muted truncate text-[11px] leading-none font-medium'>
             {detail.label}
           </div>
           <div
             className={cn(
-              'mt-1.5 truncate text-xs font-semibold tabular-nums',
+              'mt-1.5 truncate text-[12.5px] font-semibold tabular-nums',
               DETAIL_TONE_CLASSES[detail.tone ?? 'default']
             )}
             title={detail.value}
@@ -234,7 +230,6 @@ function StatCardDetails(props: { details: StatCardDetail[] }) {
 export function StatCard(props: StatCardProps) {
   const Icon = props.icon
   const tone = props.tone ?? 'accent-3'
-  const iconTone = props.iconTone ?? ICON_TONE_BY_STAT_TONE[tone]
   const sparklineVariant = props.sparklineVariant ?? 'bars'
   let valueContent: ReactNode
   if (props.loading) {
@@ -257,12 +252,12 @@ export function StatCard(props: StatCardProps) {
   } else if (props.error) {
     valueContent = (
       <div className='flex flex-col gap-1'>
-        <div className='text-muted-foreground mt-0.5 font-mono text-base font-bold tracking-tight break-all tabular-nums sm:text-2xl'>
+        <div className='text-content-muted mt-0.5 text-[19px] font-semibold tracking-[-0.02em] break-all tabular-nums sm:text-[26px]'>
           --
         </div>
         <p
           className={cn(
-            'text-muted-foreground/60 line-clamp-1 text-[11px] sm:text-xs',
+            'text-content-muted line-clamp-1 text-[11px] sm:text-xs',
             props.compactMobile && 'hidden sm:block'
           )}
         >
@@ -273,12 +268,12 @@ export function StatCard(props: StatCardProps) {
   } else {
     valueContent = (
       <div className='flex flex-col gap-1'>
-        <div className='text-foreground font-mono text-base font-semibold tracking-tight break-all tabular-nums sm:text-2xl'>
+        <div className='text-content-strong text-[19px] font-semibold tracking-[-0.02em] break-all tabular-nums sm:text-[26px]'>
           {props.value}
         </div>
         <p
           className={cn(
-            'text-muted-foreground/60 line-clamp-1 text-[11px] leading-relaxed sm:text-xs',
+            'text-content-secondary line-clamp-1 text-[11px] leading-relaxed sm:text-xs',
             props.compactMobile && 'hidden sm:block'
           )}
         >
@@ -300,22 +295,19 @@ export function StatCard(props: StatCardProps) {
   return (
     <div
       className={cn(
-        'group flex flex-col justify-between sm:min-h-32 sm:gap-3',
+        'group flex flex-col justify-between sm:min-h-24 sm:gap-2.5',
         props.compactMobile ? 'gap-1' : 'gap-1.5'
       )}
     >
       <div className='flex items-start justify-between gap-1'>
-        <div className='text-muted-foreground flex items-center gap-1 text-[11px] font-medium sm:gap-2 sm:text-xs'>
-          <IconBadge
-            tone={iconTone}
-            size='stat'
+        <div className='text-content-secondary flex items-center gap-1.5 text-[11.5px] font-medium sm:gap-2 sm:text-[12px]'>
+          <Icon
             className={cn(
-              props.compactMobile &&
-                'size-4 rounded-sm [&>svg]:size-2.5 sm:size-7 sm:rounded-md sm:[&>svg]:size-3.5'
+              'text-content-muted size-3.5 shrink-0',
+              props.compactMobile && 'size-3'
             )}
-          >
-            <Icon />
-          </IconBadge>
+            aria-hidden='true'
+          />
           <span className='line-clamp-1 leading-snug sm:line-clamp-2'>
             {props.title}
           </span>

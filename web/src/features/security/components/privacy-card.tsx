@@ -65,7 +65,7 @@ export function PrivacyCard(props: PrivacyCardProps) {
 
   return (
     <TitledCard
-      title={t('Record IP Address')}
+      title={t('Privacy')}
       description={t('Log IP address for usage and error logs')}
       disableHoverEffect
     >

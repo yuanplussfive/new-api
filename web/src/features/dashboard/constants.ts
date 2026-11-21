@@ -53,6 +53,7 @@ export const TIME_RANGE_PRESETS = [
 export const CONSUMPTION_DISTRIBUTION_CHART_OPTIONS = [
   { value: 'bar', labelKey: 'Bar Chart' },
   { value: 'area', labelKey: 'Area Chart' },
+  { value: 'heatmap', labelKey: 'Heatmap' },
 ] as const
 
 export const MODEL_ANALYTICS_CHART_OPTIONS = [

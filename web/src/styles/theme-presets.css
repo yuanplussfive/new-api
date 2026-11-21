@@ -618,7 +618,7 @@ For commercial licensing, please contact support@quantumnous.com
  * explicit Font choice wins because these blocks sit AFTER preset blocks.
  *
  * Auto resolves to the browser's sans-serif unless a preset specifies a
- * font. Explicit Sans also updates `font-sans` utilities to Public Sans. */
+ * font. Explicit Sans also updates `font-sans` utilities to Nunito Sans. */
 [data-theme-font='system'] {
   --font-body: var(--font-ui-sans);
 }
