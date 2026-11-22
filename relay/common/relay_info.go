@@ -118,6 +118,7 @@ type RelayInfo struct {
 	AudioUsage         bool
 	ReasoningEffort    string
 	Timing             *RequestTimingRecorder
+	Activity           *RequestActivity
 	// ReasoningConversion is the suffix-derived reasoning intent attached
 	// after model mapping. Converters read it via ReasoningState().
 	ReasoningConversion *dto.ReasoningConversionState
@@ -269,6 +270,7 @@ func (info *RelayInfo) RequestedImageCount() int {
 func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	info.ResponseModel = nil
 	info.Timing = nil
+	info.Activity = nil
 	info.isFirstResponse = true
 	info.FirstResponseTime = info.StartTime.Add(-time.Second)
 	info.FinalRequestRelayFormat = ""

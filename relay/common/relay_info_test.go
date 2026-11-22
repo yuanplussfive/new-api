@@ -504,6 +504,15 @@ func TestRequestTimingRecognizesExplicitProtocolEvents(t *testing.T) {
 			`{"type":"response.function_call_arguments.done","output_index":0,"arguments":"{}"}`,
 			`{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","name":"lookup","arguments":"{}"}}`,
 		}, 0, 0, 200, 1},
+		{"responses function item done only", []string{
+			`{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","name":"lookup","arguments":"{}"}}`,
+		}, 0, 0, 0, 1},
+		{"responses web search item done only", []string{
+			`{"type":"response.output_item.done","output_index":0,"item":{"type":"web_search_call","name":""}}`,
+		}, 0, 0, 0, 1},
+		{"responses function arguments done only", []string{
+			`{"type":"response.function_call_arguments.done","output_index":0,"arguments":"{}"}`,
+		}, 0, 0, 0, 1},
 		{"responses reasoning to text", []string{
 			`{"type":"response.reasoning_summary_text.delta","delta":"plan"}`,
 			`{"type":"response.output_text.delta","delta":"answer"}`,

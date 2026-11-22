@@ -111,6 +111,9 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 	if timing := relayInfo.Timing.Snapshot(); timing != nil {
 		other.SetPublic("timing", timing)
 	}
+	if activity := relayInfo.ActivitySnapshot(); activity != nil {
+		other.SetPublic("activity", activity)
+	}
 	if relayInfo.ReasoningEffort != "" {
 		other.SetPublic("reasoning_effort", relayInfo.ReasoningEffort)
 	}

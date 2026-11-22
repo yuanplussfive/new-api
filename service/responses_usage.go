@@ -40,10 +40,18 @@ func (a *ResponsesUsageAccumulator) Observe(event *dto.ResponsesStreamResponse, 
 	}
 	a.started = true
 	ObserveResponsesOutcome(a.info, event)
+	if event.Item != nil && (event.Type == "response.output_item.added" || event.Type == dto.ResponsesOutputTypeItemDone) {
+		index := -1
+		if event.OutputIndex != nil {
+			index = *event.OutputIndex
+		}
+		a.info.ObserveResponsesOutput(event.Item, index)
+	}
 	switch event.Type {
 	case "response.completed", "response.done", "response.failed", "response.incomplete", "response.cancelled", "response.canceled":
 		if event.Response != nil {
 			ApplyResponsesUsage(a.usage, event.Response.Usage)
+			a.info.ObserveResponsesOutputs(event.Response.Output)
 			if a.outputText.Len() == 0 {
 				// Some upstreams carry the output only on the terminal event.
 				a.outputText.WriteString(relayconvert.ExtractOutputTextFromResponses(event.Response))
@@ -70,6 +78,12 @@ func (a *ResponsesUsageAccumulator) Observe(event *dto.ResponsesStreamResponse, 
 		// Every delta kind here is generated output that upstream bills as
 		// output tokens, so all of them feed the missing-usage estimate.
 		a.outputText.WriteString(event.Delta)
+		switch event.Type {
+		case "response.output_text.delta":
+			a.info.ObserveActivityOutput("message")
+		case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
+			a.info.ObserveActivityReasoning()
+		}
 	case dto.ResponsesOutputTypeItemDone:
 		if event.Item == nil {
 			return

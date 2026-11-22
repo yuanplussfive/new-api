@@ -20,6 +20,7 @@ import (
 
 func GeminiTextGenerationHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	defer service.CloseResponseBodyGracefully(resp)
+	info.SetFirstResponseTime()
 
 	// 读取响应体
 	responseBody, err := io.ReadAll(resp.Body)

@@ -96,7 +96,9 @@ import {
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
 import { LogCostDisplay } from '../log-cost-display'
 import { ResponseModelDetails } from '../model-badge'
+import { NonStreamTiming } from '../non-stream-timing'
 import { PluginAuthorLink } from '../plugin-author-link'
+import { RequestActivity } from '../request-activity'
 import { LogTimingTimeline } from '../timing-timeline'
 import { DetailRow, DetailSection } from './log-detail-layout'
 
@@ -744,15 +746,26 @@ export function DetailsDialog(props: DetailsDialogProps) {
           </motion.div>
         )}
 
+        {isConsume && other?.activity && (
+          <RequestActivity activity={other.activity} />
+        )}
+
         {showTiming && requestTiming.totalMs !== null && (
           <div className='[column-span:all]'>
-            <LogTimingTimeline
-              useTimeSec={props.log.use_time}
-              frtMs={other?.frt}
-              isStream={props.log.is_stream}
-              timing={other?.timing}
-              variant='full'
-            />
+            {props.log.is_stream ? (
+              <LogTimingTimeline
+                useTimeSec={props.log.use_time}
+                frtMs={other?.frt}
+                isStream={props.log.is_stream}
+                timing={other?.timing}
+                variant='full'
+              />
+            ) : (
+              <NonStreamTiming
+                totalMs={requestTiming.totalMs}
+                upstreamWaitMs={other?.frt}
+              />
+            )}
           </div>
         )}
 
@@ -824,7 +837,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
             />
           )}
 
-          {showTiming && requestTiming.totalMs !== null && (
+          {showTiming && requestTiming.totalMs !== null && !isConsume && (
             <DetailRow
               label={t('Response Time')}
               value={

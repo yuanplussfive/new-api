@@ -246,12 +246,20 @@ func observeStreamChoices(info *relaycommon.RelayInfo, data string, seen map[str
 				seen[activeKey] = struct{}{}
 			}
 			*names = append(*names, name)
+			info.ObserveActivityTool(dto.BuildInCallFunctionCall, name, activeKey)
+		}
+		if choice.Delta.Content != nil && strings.TrimSpace(*choice.Delta.Content) != "" {
+			info.ObserveActivityOutput("message")
+		}
+		if choice.Delta.ReasoningContent != nil && strings.TrimSpace(*choice.Delta.ReasoningContent) != "" {
+			info.ObserveActivityReasoning()
 		}
 	}
 }
 
 func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	defer service.CloseResponseBodyGracefully(resp)
+	info.SetFirstResponseTime()
 
 	var simpleResponse dto.OpenAITextResponse
 	responseBody, err := io.ReadAll(resp.Body)
@@ -294,8 +302,15 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 	}
 
 	for _, choice := range simpleResponse.Choices {
-		for _, tc := range choice.Message.ParseToolCalls() {
+		if strings.TrimSpace(choice.Message.StringContent()) != "" {
+			info.ObserveActivityOutput("message")
+		}
+		if strings.TrimSpace(choice.Message.GetReasoningContent()) != "" {
+			info.ObserveActivityReasoning()
+		}
+		for index, tc := range choice.Message.ParseToolCalls() {
 			info.CountBillableToolCall(dto.BuildInCallFunctionCall, tc.Function.Name)
+			info.ObserveActivityTool(dto.BuildInCallFunctionCall, tc.Function.Name, relaycommon.ActivityToolKey("chat", dto.BuildInCallFunctionCall, tc.ID, index))
 		}
 	}
 	info.ApplyVendorToolUsage(responseBody)

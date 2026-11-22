@@ -135,6 +135,24 @@ export interface LogTimingV2 {
   segments: TimingSegment[]
 }
 
+export interface LogActivityReasoning {
+  used: boolean
+  tokens?: number
+}
+
+export interface LogActivityTool {
+  type: string
+  name?: string
+  count: number
+}
+
+export interface LogActivity {
+  version: number
+  reasoning?: LogActivityReasoning
+  tools?: LogActivityTool[]
+  outputs?: string[]
+}
+
 export interface LogOtherData {
   admin_info?: {
     request_policy?: PolicyEvent[]
@@ -248,6 +266,7 @@ export interface LogOtherData {
   matched_tier?: string
   request_rules?: RequestRuleTrace[]
   usage_facts?: Record<string, string | number>
+  activity?: LogActivity
   timing?: Partial<Omit<LogTimingV2, 'version'>> & {
     version?: number
     // Historical fields remain readable by old fixtures, but are never used

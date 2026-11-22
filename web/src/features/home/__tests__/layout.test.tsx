@@ -100,7 +100,7 @@ describe('product homepage', () => {
   it('opens with the product headline and the live gateway endpoint', async () => {
     await renderPage(() => <Hero />)
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
-      'Your models. One workspace.'
+      'Senera API'
     )
     expect(screen.getByText(`${window.location.origin}/v1`)).toBeVisible()
     expect(document.querySelector('h1')?.innerHTML).not.toContain('&lt;br')

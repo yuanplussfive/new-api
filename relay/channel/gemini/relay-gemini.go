@@ -132,8 +132,17 @@ func countGeminiBillableFunctionCalls(info *relaycommon.RelayInfo, response *dto
 	if info == nil || response == nil {
 		return
 	}
-	for _, candidate := range response.Candidates {
-		for _, part := range candidate.Content.Parts {
+	for candidateIndex := range response.Candidates {
+		candidate := &response.Candidates[candidateIndex]
+		for partIndex := range candidate.Content.Parts {
+			part := &candidate.Content.Parts[partIndex]
+			if strings.TrimSpace(part.Text) != "" {
+				if part.Thought {
+					info.ObserveActivityReasoning()
+				} else {
+					info.ObserveActivityOutput("message")
+				}
+			}
 			if part.FunctionCall == nil {
 				continue
 			}
@@ -141,6 +150,7 @@ func countGeminiBillableFunctionCalls(info *relaycommon.RelayInfo, response *dto
 				continue
 			}
 			info.CountBillableToolCall(dto.BuildInCallFunctionCall, part.FunctionCall.FunctionName)
+			info.ObserveActivityTool(dto.BuildInCallFunctionCall, part.FunctionCall.FunctionName, relaycommon.ActivityToolKey("gemini", dto.BuildInCallFunctionCall, "", candidateIndex*1000+partIndex))
 		}
 	}
 }
@@ -410,6 +420,7 @@ func GeminiChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *
 }
 
 func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
+	info.SetFirstResponseTime()
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)

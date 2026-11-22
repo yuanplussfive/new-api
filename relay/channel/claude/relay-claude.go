@@ -229,6 +229,14 @@ func countClaudeStreamBillableTools(info *relaycommon.RelayInfo, claudeResponse 
 	if claudeResponse.Type == "content_block_start" && claudeResponse.ContentBlock != nil {
 		countClaudeContentBlockTools(info, claudeResponse.ContentBlock)
 	}
+	if claudeResponse.Type == "content_block_delta" && claudeResponse.Delta != nil {
+		if claudeResponse.Delta.Thinking != nil && strings.TrimSpace(*claudeResponse.Delta.Thinking) != "" {
+			info.ObserveActivityReasoning()
+		}
+		if claudeResponse.Delta.Text != nil && strings.TrimSpace(*claudeResponse.Delta.Text) != "" {
+			info.ObserveActivityOutput("message")
+		}
+	}
 	if claudeResponse.Type == "message_delta" && claudeResponse.Usage != nil {
 		// message_delta usage is cumulative, so the last report wins.
 		recordClaudeServerToolUse(info, claudeResponse.Usage.ServerToolUse)
@@ -241,13 +249,22 @@ func countClaudeStreamBillableTools(info *relaycommon.RelayInfo, claudeResponse 
 // bills one search: usage.server_tool_use replaces that count when reported,
 // and it stands when a stream ends before message_delta.
 func countClaudeContentBlockTools(info *relaycommon.RelayInfo, block *dto.ClaudeMediaMessage) {
+	if block == nil {
+		return
+	}
 	switch block.Type {
+	case "thinking":
+		info.ObserveActivityReasoning()
+	case "text":
+		info.ObserveActivityOutput("message")
 	case "tool_use":
 		info.CountBillableToolCall(dto.BuildInCallToolUse, block.Name)
+		info.ObserveActivityTool(dto.BuildInCallToolUse, block.Name, relaycommon.ActivityToolKey("claude", block.Type, block.Id, 0))
 	case "web_search_tool_result":
 		if _, delivered := block.Content.([]any); delivered && info.WebSearchBillingKey != "" {
 			info.CountBillableToolCall(dto.BuildInCallWebSearchCall, "")
 		}
+		info.ObserveActivityTool(dto.BuildInCallWebSearchCall, "", relaycommon.ActivityToolKey("claude", block.Type, block.Id, 0))
 	}
 }
 
@@ -440,6 +457,7 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 
 func ClaudeHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.NewAPIError) {
 	defer service.CloseResponseBodyGracefully(resp)
+	info.SetFirstResponseTime()
 
 	claudeInfo := &ClaudeResponseInfo{
 		ResponseId:   helper.GetResponseID(c),

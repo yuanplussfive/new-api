@@ -340,3 +340,25 @@ func TestResponsesUsageAccumulatorMissingUsageEstimation(t *testing.T) {
 		})
 	}
 }
+
+func TestResponsesUsageAccumulatorCapturesActivity(t *testing.T) {
+	info := &relaycommon.RelayInfo{}
+	accumulator := NewResponsesUsageAccumulator(info)
+	index := 0
+	accumulator.Observe(&dto.ResponsesStreamResponse{
+		Type:        "response.output_item.added",
+		OutputIndex: &index,
+		Item:        &dto.ResponsesOutput{Type: dto.BuildInCallFunctionCall, ID: "call-1", Name: "lookup"},
+	}, nil)
+	accumulator.Observe(&dto.ResponsesStreamResponse{
+		Type:        dto.ResponsesOutputTypeItemDone,
+		OutputIndex: &index,
+		Item:        &dto.ResponsesOutput{Type: dto.BuildInCallFunctionCall, ID: "call-1", Name: "lookup"},
+	}, nil)
+
+	activity := info.ActivitySnapshot()
+	require.NotNil(t, activity)
+	require.Len(t, activity.Tools, 1)
+	assert.Equal(t, "lookup", activity.Tools[0].Name)
+	assert.Equal(t, 1, activity.Tools[0].Count)
+}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	appcommon "github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 )
 
 const maxTimingSegments = 256
@@ -461,12 +462,12 @@ func (r *RequestTimingRecorder) classifyTypedEvent(frame timingFrame) timingObse
 		case "message":
 			observed.flags = timingContent
 		case "function_call":
-			if strings.TrimSpace(frame.Item.Name) != "" || strings.TrimSpace(frame.Item.Arguments) != "" {
-				r.noteTool("responses", frame.OutputIndex)
-				observed.flags = timingTool
-			}
+			r.noteTool("responses", frame.OutputIndex)
+			observed.flags = timingTool
 		}
 	case "response.function_call_arguments.done":
+		r.noteTool("responses", frame.OutputIndex)
+		observed.flags = timingTool
 		observed.endPhase = "tool"
 	case "response.output_text.done":
 		observed.endPhase = "content"
@@ -476,6 +477,12 @@ func (r *RequestTimingRecorder) classifyTypedEvent(frame timingFrame) timingObse
 	case "response.output_item.done":
 		switch frame.Item.Type {
 		case "function_call":
+			r.noteTool("responses", frame.OutputIndex)
+			observed.flags = timingTool
+			observed.endPhase = "tool"
+		case dto.BuildInCallWebSearchCall, dto.BuildInCallFileSearchCall:
+			r.noteTool("responses", frame.OutputIndex)
+			observed.flags = timingTool
 			observed.endPhase = "tool"
 		case "message":
 			observed.endPhase = "content"

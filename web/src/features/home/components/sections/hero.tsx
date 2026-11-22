@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { Trans, useTranslation } from 'react-i18next'
+import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
 import { Button } from '@/components/ui/button'
@@ -71,10 +71,7 @@ export function Hero(props: HeroProps) {
               />
             </a>
             <h1 className='mt-6 text-[clamp(2.25rem,3.6vw,3.25rem)] leading-[1.12] font-semibold tracking-[-0.04em] whitespace-nowrap'>
-              <Trans
-                i18nKey='Your models. One workspace.'
-                components={{ br: <br /> }}
-              />
+              {t('Senera API')}
             </h1>
             <p className='text-muted-foreground mt-5 max-w-md text-[14.5px] leading-[1.8]'>
               {t(
