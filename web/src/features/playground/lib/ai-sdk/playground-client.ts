@@ -17,8 +17,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import {
+  extractReasoningMiddleware,
   generateText,
   streamText,
+  wrapLanguageModel,
   type CallSettings,
   type LanguageModel,
   type ModelMessage,
@@ -57,7 +59,8 @@ interface PlaygroundRequestBase {
 
 export function createPlaygroundFetch(
   group: string,
-  authHeaders: Record<string, string>
+  authHeaders: Record<string, string>,
+  format?: PlaygroundApiFormat
 ): typeof fetch {
   return async (input, init) => {
     const headers = new Headers(init?.headers)
@@ -84,13 +87,134 @@ export function createPlaygroundFetch(
       }
     }
 
-    return fetch(input, {
+    const response = await fetch(input, {
       ...init,
       body,
       credentials: 'include',
       headers,
     })
+    if (format !== 'chat' || !response.ok) return response
+
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('text/event-stream')) {
+      return transformChatSseResponse(response)
+    }
+    if (contentType.includes('application/json')) {
+      return transformChatJsonResponse(response)
+    }
+    return response
   }
+}
+
+type ChatPayloadRecord = Record<string, unknown>
+
+function isPayloadRecord(value: unknown): value is ChatPayloadRecord {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getReasoningText(block: ChatPayloadRecord): string | undefined {
+  for (const key of ['reasoning_content', 'reasoning']) {
+    const value = block[key]
+    if (typeof value === 'string' && value.length > 0) return value
+  }
+  return undefined
+}
+
+/**
+ * Chat-completions upstreams commonly return reasoning in the non-standard
+ * `reasoning_content` field. The OpenAI Chat provider intentionally ignores it,
+ * so wrap it in a think tag that AI SDK's extractReasoningMiddleware can parse.
+ */
+export function rewriteChatReasoningPayload(payload: unknown): unknown {
+  if (!isPayloadRecord(payload) || !Array.isArray(payload.choices)) {
+    return payload
+  }
+
+  for (const choice of payload.choices) {
+    if (!isPayloadRecord(choice)) continue
+    for (const key of ['delta', 'message']) {
+      const block = choice[key]
+      if (!isPayloadRecord(block)) continue
+      const reasoning = getReasoningText(block)
+      if (!reasoning) continue
+
+      const content = typeof block.content === 'string' ? block.content : ''
+      block.content = `<think>${reasoning}</think>${content}`
+      delete block.reasoning_content
+      delete block.reasoning
+    }
+  }
+
+  return payload
+}
+
+function rewriteChatSseLine(line: string): string {
+  if (!line.startsWith('data:')) return line
+
+  const data = line.slice(5).trimStart()
+  if (data === '[DONE]' || data === '') return line
+
+  try {
+    const payload = JSON.parse(data) as unknown
+    return `data: ${JSON.stringify(rewriteChatReasoningPayload(payload))}`
+  } catch {
+    return line
+  }
+}
+
+function transformChatSseResponse(response: Response): Response {
+  if (!response.body) return response
+
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+  let buffer = ''
+  const stream = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        buffer += decoder.decode(chunk, { stream: true })
+        let newline = buffer.indexOf('\n')
+        while (newline >= 0) {
+          const line = buffer.slice(0, newline)
+          buffer = buffer.slice(newline + 1)
+          controller.enqueue(encoder.encode(`${rewriteChatSseLine(line)}\n`))
+          newline = buffer.indexOf('\n')
+        }
+      },
+      flush(controller) {
+        buffer += decoder.decode()
+        if (buffer) {
+          controller.enqueue(encoder.encode(rewriteChatSseLine(buffer)))
+        }
+      },
+    })
+  )
+
+  return new Response(stream, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  })
+}
+
+async function transformChatJsonResponse(
+  response: Response
+): Promise<Response> {
+  let payload: unknown
+  try {
+    payload = await response.json()
+  } catch {
+    return response
+  }
+
+  const headers = new Headers(response.headers)
+  headers.delete('content-length')
+  headers.delete('content-encoding')
+
+  return new Response(JSON.stringify(rewriteChatReasoningPayload(payload)), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }
 
 async function createLanguageModel(
@@ -99,7 +223,7 @@ async function createLanguageModel(
   authHeaders: Record<string, string>
 ): Promise<LanguageModel> {
   const origin = window.location.origin
-  const requestFetch = createPlaygroundFetch(config.group, authHeaders)
+  const requestFetch = createPlaygroundFetch(config.group, authHeaders, format)
   const common = {
     apiKey: 'playground',
     fetch: requestFetch,
@@ -127,9 +251,14 @@ async function createLanguageModel(
     ...common,
     baseURL: `${origin}/pg`,
   })
-  return format === 'responses'
-    ? provider.responses(config.model)
-    : provider.chat(config.model)
+  if (format === 'responses') {
+    return provider.responses(config.model)
+  }
+
+  return wrapLanguageModel({
+    model: provider.chat(config.model),
+    middleware: extractReasoningMiddleware({ tagName: 'think' }),
+  })
 }
 
 function buildCallSettings(

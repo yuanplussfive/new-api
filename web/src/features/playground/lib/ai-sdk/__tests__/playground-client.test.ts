@@ -20,7 +20,10 @@ import { describe, expect, test, vi } from 'vitest'
 
 import type { Message, MessageAttachment } from '../../../types'
 import { createUserMessage } from '../../message/message-utils'
-import { createPlaygroundFetch } from '../playground-client'
+import {
+  createPlaygroundFetch,
+  rewriteChatReasoningPayload,
+} from '../playground-client'
 import { getPlaygroundErrorDetails } from '../playground-error'
 import { toModelMessages } from '../playground-messages'
 
@@ -74,6 +77,76 @@ describe('playground AI SDK messages', () => {
         ],
       },
     ])
+  })
+})
+
+describe('playground chat reasoning transport', () => {
+  test('rewrites reasoning_content into a think-tagged chat delta', () => {
+    expect(
+      rewriteChatReasoningPayload({
+        choices: [
+          {
+            delta: { reasoning_content: 'plan', content: 'answer' },
+          },
+        ],
+      })
+    ).toEqual({
+      choices: [{ delta: { content: '<think>plan</think>answer' } }],
+    })
+  })
+
+  test('rewrites buffered chat message reasoning', () => {
+    expect(
+      rewriteChatReasoningPayload({
+        choices: [
+          {
+            message: { reasoning: 'plan', content: 'answer' },
+          },
+        ],
+      })
+    ).toEqual({
+      choices: [{ message: { content: '<think>plan</think>answer' } }],
+    })
+  })
+
+  test('rewrites reasoning on the chat SSE transport', async () => {
+    const encoder = new TextEncoder()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                'data: {"choices":[{"delta":{"reasoning_content":"plan"}}]}\n\n'
+              )
+            )
+            controller.enqueue(
+              encoder.encode(
+                'data: {"choices":[{"delta":{"content":"answer"}}]}\n\n'
+              )
+            )
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+            controller.close()
+          },
+        })
+        return new Response(body, {
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      })
+    )
+
+    try {
+      const requestFetch = createPlaygroundFetch('default', {}, 'chat')
+      const response = await requestFetch('/pg/chat/completions', {
+        method: 'POST',
+      })
+      const text = await response.text()
+      expect(text).toContain('<think>plan</think>')
+      expect(text).not.toContain('reasoning_content')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
 
